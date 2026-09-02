@@ -3,9 +3,9 @@ const express = require("express");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 
-app.use(express.json());
 const app = express();
 const PORT = 3000;
+app.use(express.json());
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -141,6 +141,44 @@ app.post("/api/bridges", async (req, res) => {
       } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Something went wrong logging in" });
+      }
+    });
+
+    // Receives a new sensor reading from the ESP32 for a specific bridge.
+    // Expects a JSON body with: bridge_id, water_level_cm, vibration_g,
+    // barrier1_status, barrier2_status, buzzer_status
+    app.post("/api/readings", async (req, res) => {
+      try {
+        const {
+          bridge_id,
+          water_level_cm,
+          vibration_g,
+          barrier1_status,
+          barrier2_status,
+          buzzer_status,
+        } = req.body;
+
+        const result = await pool.query(
+          `INSERT INTO readings 
+        (bridge_id, water_level_cm, vibration_g, barrier1_status, barrier2_status, buzzer_status)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+          [
+            bridge_id,
+            water_level_cm,
+            vibration_g,
+            barrier1_status,
+            barrier2_status,
+            buzzer_status,
+          ],
+        );
+
+        res.status(201).json(result.rows[0]);
+      } catch (err) {
+        console.error(err);
+        res
+          .status(500)
+          .json({ error: "Something went wrong saving the reading" });
       }
     });
 
