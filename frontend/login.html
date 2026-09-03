@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BridgeGuard - Login</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="login-wrapper">
+      <div class="login-box">
+        <div class="logo" style="margin-bottom: 24px">
+          <span class="logo-text">BRIDGE<span class="accent">GUARD</span></span>
+          <div class="logo-sub">Flood and Bridge Monitoring</div>
+        </div>
+
+        <form id="login-form">
+          <input type="text" id="username" placeholder="Username" required />
+          <input
+            type="password"
+            id="password"
+            placeholder="Password"
+            required
+          />
+          <button type="submit">Log In</button>
+        </form>
+
+        <div id="login-error" class="login-error"></div>
+      </div>
+    </div>
+
+    <script src="login.js"></script>
+  </body>
+</html>
