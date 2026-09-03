@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BridgeGuard - Flood and Bridge Monitoring</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <span class="logo-text">BRIDGE<span class="accent">GUARD</span></span>
+          <div class="logo-sub">Flood and Bridge Monitoring</div>
+        </div>
+
+        <nav class="nav">
+          <a href="#" class="nav-item active">Overview</a>
+          <a href="#" class="nav-item">Bridges</a>
+          <a href="#" class="nav-item">Alerts</a>
+          <a href="#" class="nav-item">History</a>
+          <a href="#" class="nav-item">Weather</a>
+          <a href="#" class="nav-item">Settings</a>
+        </nav>
+
+        <div class="system-status">
+          <div class="label">System Status</div>
+          <div class="status-ok">
+            <span class="dot"></span> All Systems Operational
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="main">
+        <!-- Top bar -->
+        <div class="topbar">
+          <select id="bridge-select" class="bridge-select">
+            <option value="">Search bridge...</option>
+          </select>
+        </div>
+
+        <!-- Bridge header -->
+        <div class="bridge-header">
+          <div>
+            <h1 id="bridge-name">Loading...</h1>
+            <div class="bridge-meta">
+              <span id="bridge-location">--</span>
+              <span id="bridge-code" class="badge">--</span>
+            </div>
+          </div>
+          <div class="header-right">
+            <span class="live-badge"><span class="dot"></span> LIVE</span>
+            <div id="last-updated" class="last-updated">Last updated: --</div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <section class="stat-cards">
+          <div class="card">
+            <div class="card-label">Bridge Status</div>
+            <div id="bridge-status" class="card-value">--</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Water Level</div>
+            <div id="water-level" class="card-value">-- cm</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Vibration Status</div>
+            <div id="vibration-status" class="card-value">--</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Buzzer</div>
+            <div id="buzzer-status" class="card-value">--</div>
+          </div>
+          <div class="card">
+            <div class="card-label">ESP32 Status</div>
+            <div id="esp32-status" class="card-value">--</div>
+          </div>
+        </section>
+
+        <!-- Barrier status -->
+        <section class="panel">
+          <div class="panel-title">BARRIER STATUS</div>
+          <div class="barrier-row">
+            <div>
+              <div class="barrier-label">Barrier 1 (Left Side)</div>
+              <div id="barrier1-status" class="barrier-value">--</div>
+            </div>
+            <div>
+              <div class="barrier-label">Barrier 2 (Right Side)</div>
+              <div id="barrier2-status" class="barrier-value">--</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Charts -->
+        <section class="charts">
+          <div class="panel">
+            <div class="panel-title">WATER LEVEL HISTORY (cm)</div>
+            <canvas id="water-level-chart"></canvas>
+          </div>
+          <div class="panel">
+            <div class="panel-title">VIBRATION HISTORY</div>
+            <canvas id="vibration-chart"></canvas>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
