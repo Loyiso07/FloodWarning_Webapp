@@ -14,22 +14,25 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Database connection
+// ========== DATABASE CONNECTION ==========
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
 });
 
 // Test database connection
-pool.connect((err) => {
+pool.query('SELECT NOW()', (err, res) => {
     if (err) {
         console.error('❌ Database connection failed:', err.message);
     } else {
         console.log('✅ Database connected successfully!');
+        console.log('📅 Server time:', res.rows[0].now);
     }
 });
 
+// ========== JWT SECRET ==========
 const JWT_SECRET = process.env.JWT_SECRET || 'floodwarning_super_secret_key_2026';
+console.log('🔑 JWT_SECRET:', JWT_SECRET);
 
 // ========== AUTHENTICATION ==========
 
@@ -76,9 +79,123 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// ========== GET ALL USERS (ADMIN ONLY) ==========
+
+app.get('/api/users', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Invalid token format' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        console.log('✅ Decoded token:', decoded);
+        
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+        }
+        
+        // ✅ Removed created_at
+        const result = await pool.query(
+            'SELECT id, name, surname, username, phone_number, role FROM users ORDER BY id'
+        );
+        console.log('✅ Users found:', result.rows.length);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Token verification error:', error.message);
+        res.status(401).json({ error: 'Invalid token' });
+    }
+});
+
+// ========== CREATE USER (ADMIN ONLY) ==========
+
+app.post('/api/users', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Invalid token format' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+        }
+        
+        const { name, surname, username, password, phone_number, role } = req.body;
+        
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const result = await pool.query(
+            `INSERT INTO users (name, surname, username, password_hash, phone_number, role) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, surname, username, phone_number, role`,
+            [name, surname, username, hashedPassword, phone_number, role || 'staff']
+        );
+        
+        console.log('✅ User created:', result.rows[0].username);
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('❌ Error creating user:', error.message);
+        if (error.code === '23505') {
+            res.status(400).json({ error: 'Username already exists' });
+        } else {
+            res.status(500).json({ error: 'Server error' });
+        }
+    }
+});
+
+// ========== USER REGISTRATION ==========
+
+app.post('/api/register', async (req, res) => {
+    const { name, surname, username, password, phone_number } = req.body;
+    
+    try {
+        const existing = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (existing.rows.length > 0) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const result = await pool.query(
+            `INSERT INTO users (name, surname, username, password_hash, phone_number, role) 
+             VALUES ($1, $2, $3, $4, $5, 'staff') RETURNING id, name, surname, username, phone_number, role`,
+            [name, surname, username, hashedPassword, phone_number]
+        );
+        
+        const token = jwt.sign(
+            { userId: result.rows[0].id, username: result.rows[0].username, role: result.rows[0].role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        
+        res.status(201).json({
+            message: 'Registration successful!',
+            token,
+            user: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // ========== BRIDGE ENDPOINTS ==========
 
-// Get all bridges
 app.get('/api/bridges', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM bridges ORDER BY id');
@@ -89,25 +206,6 @@ app.get('/api/bridges', async (req, res) => {
     }
 });
 
-// Get single bridge
-app.get('/api/bridges/:id', async (req, res) => {
-    const { id } = req.params;
-    
-    try {
-        const result = await pool.query('SELECT * FROM bridges WHERE id = $1', [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Bridge not found' });
-        }
-        
-        res.json(result.rows[0]);
-    } catch (error) {
-        console.error('Error fetching bridge:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Create new bridge
 app.post('/api/bridges', async (req, res) => {
     const { code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g } = req.body;
     
@@ -125,9 +223,51 @@ app.post('/api/bridges', async (req, res) => {
     }
 });
 
+app.put('/api/bridges/:id', async (req, res) => {
+    const { id } = req.params;
+    const { code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g } = req.body;
+    
+    try {
+        const result = await pool.query(
+            `UPDATE bridges 
+             SET code = $1, name = $2, location = $3, warning_threshold_cm = $4, danger_threshold_cm = $5, vibration_threshold_g = $6
+             WHERE id = $7 RETURNING *`,
+            [code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g, id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Bridge not found' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error updating bridge:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/bridges/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const check = await pool.query('SELECT * FROM bridges WHERE id = $1', [id]);
+        if (check.rows.length === 0) {
+            return res.status(404).json({ error: 'Bridge not found' });
+        }
+        
+        await pool.query('DELETE FROM readings WHERE bridge_id = $1', [id]);
+        await pool.query('DELETE FROM alerts WHERE bridge_id = $1', [id]);
+        await pool.query('DELETE FROM bridges WHERE id = $1', [id]);
+        
+        res.json({ message: 'Bridge deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting bridge:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // ========== READINGS ENDPOINTS ==========
 
-// Get all readings
 app.get('/api/readings', async (req, res) => {
     const { bridge_id, limit } = req.query;
     
@@ -159,7 +299,6 @@ app.get('/api/readings', async (req, res) => {
     }
 });
 
-// Create new reading (ESP32 will send data here)
 app.post('/api/readings', async (req, res) => {
     const { 
         bridge_id, 
@@ -171,7 +310,6 @@ app.post('/api/readings', async (req, res) => {
     } = req.body;
     
     try {
-        // Check thresholds
         const bridge = await pool.query('SELECT * FROM bridges WHERE id = $1', [bridge_id]);
         if (bridge.rows.length === 0) {
             return res.status(404).json({ error: 'Bridge not found' });
@@ -192,7 +330,6 @@ app.post('/api/readings', async (req, res) => {
             [bridge_id, water_level_cm, vibration_g, barrier1_status, barrier2_status, buzzer_status, alert_level]
         );
         
-        // Create alert if needed
         if (alert_level !== 'normal') {
             let message = '';
             if (alert_level === 'danger') {
@@ -217,7 +354,6 @@ app.post('/api/readings', async (req, res) => {
 
 // ========== ALERTS ENDPOINTS ==========
 
-// Get all alerts
 app.get('/api/alerts', async (req, res) => {
     const { resolved } = req.query;
     
@@ -245,38 +381,29 @@ app.get('/api/alerts', async (req, res) => {
     }
 });
 
-// ========== CONTROL ENDPOINTS (ESP32) ==========
-
-// Get control status for a bridge
-app.get('/api/control/:bridge_id', async (req, res) => {
-    const { bridge_id } = req.params;
+app.put('/api/alerts/:id/resolve', async (req, res) => {
+    const { id } = req.params;
     
     try {
         const result = await pool.query(
-            `SELECT * FROM readings WHERE bridge_id = $1 ORDER BY timestamp DESC LIMIT 1`,
-            [bridge_id]
+            `UPDATE alerts SET is_resolved = true, resolved_at = NOW() 
+             WHERE id = $1 RETURNING *`,
+            [id]
         );
         
         if (result.rows.length === 0) {
-            return res.json({ barrier1: false, barrier2: false, buzzer: false });
+            return res.status(404).json({ error: 'Alert not found' });
         }
         
-        const reading = result.rows[0];
-        res.json({
-            barrier1: reading.barrier1_status,
-            barrier2: reading.barrier2_status,
-            buzzer: reading.buzzer_status,
-            alert_level: reading.alert_level
-        });
+        res.json(result.rows[0]);
     } catch (error) {
-        console.error('Error getting control status:', error);
+        console.error('Error resolving alert:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
 // ========== STATISTICS ENDPOINTS ==========
 
-// Get dashboard statistics
 app.get('/api/stats', async (req, res) => {
     try {
         const totalBridges = await pool.query('SELECT COUNT(*) FROM bridges');
@@ -296,8 +423,62 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// Start server
+// ========== FORGOT PASSWORD ==========
+
+app.post('/api/forgot-password', async (req, res) => {
+    const { username } = req.body;
+    
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const resetToken = jwt.sign(
+            { userId: result.rows[0].id, purpose: 'reset' },
+            JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+        
+        res.json({ 
+            message: 'Password reset link sent to your email',
+            resetToken: resetToken
+        });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        if (decoded.purpose !== 'reset') {
+            return res.status(400).json({ error: 'Invalid token' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        await pool.query(
+            'UPDATE users SET password_hash = $1 WHERE id = $2',
+            [hashedPassword, decoded.userId]
+        );
+        
+        res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(400).json({ error: 'Invalid or expired token' });
+    }
+});
+
+// ========== START SERVER ==========
+
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 API available at http://localhost:${PORT}/api`);
+    console.log(`🔑 JWT_SECRET: ${JWT_SECRET}`);
 });
