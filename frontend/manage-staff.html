@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BridgeGuard - Manage Staff</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="manage-page">
+      <div class="manage-header">
+        <span class="logo-text">BRIDGE<span class="accent">GUARD</span></span>
+        <a href="admin.html" class="back-link">&larr; Back to Admin</a>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">ADD STAFF ACCOUNT</div>
+        <form id="add-staff-form" class="stacked-form">
+          <input type="text" id="name" placeholder="First Name" required />
+          <input type="text" id="surname" placeholder="Surname" required />
+          <input type="text" id="username" placeholder="Username" required />
+          <input
+            type="password"
+            id="password"
+            placeholder="Password"
+            required
+          />
+          <input type="text" id="phone_number" placeholder="Phone Number" />
+          <select id="role" required>
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button type="submit">Add Account</button>
+        </form>
+        <div id="form-message" class="login-error"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">EXISTING ACCOUNTS</div>
+        <div id="staff-list"></div>
+      </div>
+    </div>
+
+    <script src="manage-staff.js"></script>
+  </body>
+</html>

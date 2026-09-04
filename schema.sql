@@ -33,3 +33,6 @@ CREATE TABLE readings (
     buzzer_status BOOLEAN NOT NULL,
     timestamp TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE bridges ADD COLUMN is_active BOOLEAN DEFAULT true;
+ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT true;
