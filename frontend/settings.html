@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BridgeGuard - Settings</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="theme.js"></script>
+  </head>
+  <body>
+    <div class="manage-page">
+      <div class="manage-header">
+        <span class="logo-text">BRIDGE<span class="accent">GUARD</span></span>
+        <a href="dashboard.html" class="back-link">&larr; Back to Dashboard</a>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">ACCOUNT</div>
+        <div class="settings-row">
+          <span>Name</span>
+          <span id="settings-name"></span>
+        </div>
+        <div class="settings-row">
+          <span>Username</span>
+          <span id="settings-username"></span>
+        </div>
+        <div class="settings-row">
+          <span>Role</span>
+          <span id="settings-role"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">APPEARANCE</div>
+        <div class="settings-row">
+          <span>Theme</span>
+          <button id="theme-toggle" class="theme-toggle-btn"></button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <button id="logout-btn" class="logout-btn">Log Out</button>
+      </div>
+    </div>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

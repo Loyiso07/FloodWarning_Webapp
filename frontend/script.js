@@ -11,10 +11,6 @@ if (!loggedInUser || isReload) {
   window.location.href = "login.html?reason=notloggedin";
 }
 
-if (!loggedInUser) {
-  window.location.href = "login.html?reason=notloggedin";
-}
-
 const API_BASE = "http://localhost:3000";
 let currentBridgeId = null;
 let waterChart = null;
@@ -32,10 +28,16 @@ async function loadBridges() {
     select.appendChild(option);
   });
 
-  if (bridges.length > 0) {
-    select.value = bridges[0].id;
-    loadBridgeDetails(bridges[0]);
-    loadReadings(bridges[0].id);
+  const params = new URLSearchParams(window.location.search);
+  const requestedBridgeId = params.get("bridge");
+  const initialBridge = requestedBridgeId
+    ? bridges.find((b) => b.id == requestedBridgeId)
+    : bridges[0];
+
+  if (initialBridge) {
+    select.value = initialBridge.id;
+    loadBridgeDetails(initialBridge);
+    loadReadings(initialBridge.id);
   }
 
   select.addEventListener("change", () => {
