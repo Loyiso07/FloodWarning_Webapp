@@ -1,0 +1,31 @@
+{
+  "name": "floodwarning_webapp",
+  "version": "1.0.0",
+  "description": "IoT-based bridge flood monitoring system with real-time alerts and automated barrier control.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Loyiso07/FloodWarning_Webapp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Loyiso07/FloodWarning_Webapp/issues"
+  },
+  "homepage": "https://github.com/Loyiso07/FloodWarning_Webapp#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
