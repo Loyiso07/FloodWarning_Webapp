@@ -94,6 +94,16 @@ app.post("/api/bridges", async (req, res) => {
   }
 });
 
+app.get("/api/bridges/all", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM bridges ORDER BY name");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong fetching bridges" });
+  }
+});
+
 // DELETE /api/bridges/:id
 // Soft-deletes a bridge by marking it inactive instead of removing it,
 // so its reading history stays intact. Admin-only feature on the frontend.
