@@ -7,6 +7,9 @@ function Dashboard({ user }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // ✅ Use environment variable for API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchDashboardData();
         const interval = setInterval(fetchDashboardData, 30000);
@@ -16,7 +19,7 @@ function Dashboard({ user }) {
     const fetchDashboardData = async () => {
         try {
             const token = localStorage.getItem('token');
-            console.log('Token:', token); // Debug: Check if token exists
+            console.log('Token:', token);
             
             if (!token) {
                 setError('No authentication token found. Please login again.');
@@ -27,11 +30,11 @@ function Dashboard({ user }) {
             const headers = { Authorization: `Bearer ${token}` };
             
             console.log('Fetching stats...');
-            const statsRes = await axios.get('/api/stats', { headers });
+            const statsRes = await axios.get(`${API_URL}/api/stats`, { headers });
             console.log('Stats response:', statsRes.data);
             
             console.log('Fetching readings...');
-            const readingsRes = await axios.get('/api/readings?limit=10', { headers });
+            const readingsRes = await axios.get(`${API_URL}/api/readings?limit=10`, { headers });
             console.log('Readings response:', readingsRes.data);
 
             setStats(statsRes.data);
@@ -48,7 +51,7 @@ function Dashboard({ user }) {
                 localStorage.removeItem('user');
                 window.location.href = '/login';
             } else if (error.code === 'ERR_NETWORK') {
-                setError('Cannot connect to server. Make sure backend is running on port 5000.');
+                setError('Cannot connect to server. Make sure backend is running.');
             } else {
                 setError(`Failed to load dashboard: ${error.response?.data?.error || error.message}`);
             }

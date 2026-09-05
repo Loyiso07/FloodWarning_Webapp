@@ -6,6 +6,9 @@ function Alerts({ user }) {
     const [loading, setLoading] = useState(true);
     const [showResolved, setShowResolved] = useState(false);
 
+    // ✅ Use environment variable for API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchAlerts();
         const interval = setInterval(fetchAlerts, 30000);
@@ -16,7 +19,7 @@ function Alerts({ user }) {
         try {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
-            const response = await axios.get(`http://localhost:5000/api/alerts?resolved=${showResolved}`, { headers });
+            const response = await axios.get(`${API_URL}/api/alerts?resolved=${showResolved}`, { headers });
             setAlerts(response.data);
             setLoading(false);
         } catch (error) {
@@ -29,7 +32,7 @@ function Alerts({ user }) {
         try {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
-            await axios.put(`http://localhost:5000/api/alerts/${id}/resolve`, {}, { headers });
+            await axios.put(`${API_URL}/api/alerts/${id}/resolve`, {}, { headers });
             fetchAlerts();
         } catch (error) {
             console.error('Error resolving alert:', error);

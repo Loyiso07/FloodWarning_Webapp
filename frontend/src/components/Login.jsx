@@ -12,13 +12,16 @@ function Login({ onLogin }) {
     const [resetMessage, setResetMessage] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
 
+    // ✅ Use environment variable for API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:5000/api/login', {
+            const response = await axios.post(`${API_URL}/api/login`, {
                 username,
                 password
             });
@@ -38,7 +41,7 @@ function Login({ onLogin }) {
         setResetMessage('');
 
         try {
-            const response = await axios.post('http://localhost:5000/api/forgot-password', {
+            const response = await axios.post(`${API_URL}/api/forgot-password`, {
                 username: resetUsername
             });
             setResetMessage('Password reset link sent! Check your email.');

@@ -16,6 +16,9 @@ function Readings() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    // ✅ Use environment variable for API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -26,8 +29,8 @@ function Readings() {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [readingsRes, bridgesRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/readings?limit=20', { headers }),
-                axios.get('http://localhost:5000/api/bridges', { headers })
+                axios.get(`${API_URL}/api/readings?limit=20`, { headers }),
+                axios.get(`${API_URL}/api/bridges`, { headers })
             ]);
 
             setReadings(readingsRes.data);
@@ -48,7 +51,7 @@ function Readings() {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
 
-            await axios.post('http://localhost:5000/api/readings', {
+            await axios.post(`${API_URL}/api/readings`, {
                 ...formData,
                 water_level_cm: parseFloat(formData.water_level_cm),
                 vibration_g: parseFloat(formData.vibration_g),
@@ -85,7 +88,6 @@ function Readings() {
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">{success}</div>}
 
-            {/* Add Reading Form */}
             <div className="form-container">
                 <h2>Add New Reading</h2>
                 <form onSubmit={handleSubmit}>
@@ -163,7 +165,6 @@ function Readings() {
                 </form>
             </div>
 
-            {/* Readings List */}
             <div className="readings-list">
                 <h2>Recent Readings ({readings.length})</h2>
                 {readings.length === 0 ? (

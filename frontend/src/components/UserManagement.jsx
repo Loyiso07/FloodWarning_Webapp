@@ -6,6 +6,9 @@ function UserManagement() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    // ✅ Use environment variable for API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -22,9 +25,7 @@ function UserManagement() {
             }
 
             const headers = { Authorization: `Bearer ${token}` };
-            
-            // ✅ Use /api/users (the endpoint that works)
-            const response = await axios.get('http://localhost:5000/api/users', { headers });
+            const response = await axios.get(`${API_URL}/api/users`, { headers });
             
             console.log('Users response:', response.data);
             setUsers(response.data);
@@ -44,7 +45,7 @@ function UserManagement() {
             } else if (error.response?.status === 403) {
                 setError('Access denied. Admin privileges required.');
             } else if (error.code === 'ERR_NETWORK') {
-                setError('Cannot connect to server. Make sure backend is running on port 5000.');
+                setError('Cannot connect to server. Make sure backend is running.');
             } else {
                 setError(error.response?.data?.error || 'Failed to fetch users');
             }

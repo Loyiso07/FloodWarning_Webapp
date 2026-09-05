@@ -17,6 +17,9 @@ function Bridges() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    // ✅ Use environment variable for API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchBridges();
     }, []);
@@ -25,7 +28,7 @@ function Bridges() {
         try {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
-            const response = await axios.get('http://localhost:5000/api/bridges', { headers });
+            const response = await axios.get(`${API_URL}/api/bridges`, { headers });
             setBridges(response.data);
             setLoading(false);
         } catch (error) {
@@ -44,10 +47,10 @@ function Bridges() {
             const headers = { Authorization: `Bearer ${token}` };
 
             if (editingBridge) {
-                await axios.put(`http://localhost:5000/api/bridges/${editingBridge.id}`, formData, { headers });
+                await axios.put(`${API_URL}/api/bridges/${editingBridge.id}`, formData, { headers });
                 setSuccess('Bridge updated successfully!');
             } else {
-                await axios.post('http://localhost:5000/api/bridges', formData, { headers });
+                await axios.post(`${API_URL}/api/bridges`, formData, { headers });
                 setSuccess('Bridge added successfully!');
             }
 
@@ -75,7 +78,7 @@ function Bridges() {
         try {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
-            await axios.delete(`http://localhost:5000/api/bridges/${id}`, { headers });
+            await axios.delete(`${API_URL}/api/bridges/${id}`, { headers });
             fetchBridges();
             setSuccess('Bridge deleted successfully!');
             setTimeout(() => setSuccess(''), 3000);
@@ -122,7 +125,6 @@ function Bridges() {
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">{success}</div>}
 
-            {/* Form */}
             {showForm && (
                 <div className="form-container">
                     <h2>{editingBridge ? 'Edit Bridge' : 'Add New Bridge'}</h2>
@@ -203,7 +205,6 @@ function Bridges() {
                 </div>
             )}
 
-            {/* Bridge List */}
             <div className="bridge-list">
                 <h2>Bridges ({bridges.length})</h2>
                 {bridges.length === 0 ? (
