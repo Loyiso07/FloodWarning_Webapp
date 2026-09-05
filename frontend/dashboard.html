@@ -20,7 +20,7 @@
         <nav class="nav">
           <a href="#" class="nav-item active">Overview</a>
           <a href="bridges.html" class="nav-item">Bridges</a>
-          <a href="#" class="nav-item">Alerts</a>
+          <a href="alerts.html" class="nav-item">Alerts</a>
           <a href="#" class="nav-item">History</a>
           <a href="#" class="nav-item">Weather</a>
           <a href="settings.html" class="nav-item">Settings</a>
@@ -56,6 +56,18 @@
             <span class="live-badge"><span class="dot"></span> LIVE</span>
             <div id="last-updated" class="last-updated">Last updated: --</div>
           </div>
+        </div>
+
+        <!-- Critical alert banner -->
+        <div id="critical-banner" class="critical-banner">
+          <span id="critical-banner-icon">&#9888;</span>
+          <div class="critical-banner-text">
+            <div id="critical-banner-title">No Critical Alerts</div>
+            <div id="critical-banner-sub">
+              All monitored bridges are currently safe.
+            </div>
+          </div>
+          <a href="alerts.html" class="critical-banner-link">View All Alerts</a>
         </div>
 
         <!-- Stat cards -->
@@ -97,7 +109,7 @@
           </div>
         </section>
 
-        <!-- Charts -->
+        <!-- Charts + alerts -->
         <section class="charts">
           <div class="panel">
             <div class="panel-title">WATER LEVEL HISTORY (cm)</div>
@@ -106,6 +118,10 @@
           <div class="panel">
             <div class="panel-title">VIBRATION HISTORY</div>
             <canvas id="vibration-chart"></canvas>
+          </div>
+          <div class="panel">
+            <div class="panel-title">RECENT ALERTS</div>
+            <div id="dashboard-alerts-list"></div>
           </div>
         </section>
       </main>

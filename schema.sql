@@ -1,5 +1,7 @@
 -- FOR THE LOGIN CREDENTIALS OF THE USERS
 CREATE TYPE user_role AS ENUM ('admin', 'staff');
+CREATE TYPE alert_type AS ENUM ('water_level', 'vibration');
+CREATE TYPE alert_severity AS ENUM ('warning', 'danger');
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -31,6 +33,16 @@ CREATE TABLE readings (
     barrier1_status BOOLEAN NOT NULL,
     barrier2_status BOOLEAN NOT NULL,
     buzzer_status BOOLEAN NOT NULL,
+    timestamp TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE alerts (
+    id SERIAL PRIMARY KEY,
+    bridge_id INTEGER REFERENCES bridges(id),
+    alert_type alert_type NOT NULL,
+    severity alert_severity NOT NULL,
+    value DECIMAL(5, 2) NOT NULL,
+    message VARCHAR(200) NOT NULL,
     timestamp TIMESTAMP DEFAULT NOW()
 );
 

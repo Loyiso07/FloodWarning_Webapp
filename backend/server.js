@@ -131,6 +131,8 @@ app.delete("/api/bridges/:id", async (req, res) => {
 // Expects a JSON body with: bridge_id, water_level_cm, vibration_g,
 // barrier1_status, barrier2_status, buzzer_status
 // timestamp is filled in automatically by PostgreSQL (DEFAULT NOW()).
+// After saving, checks the reading against that bridge's own thresholds
+// and automatically creates an alert if one is crossed.
 app.post("/api/readings", async (req, res) => {
   try {
     const {
@@ -157,10 +159,75 @@ app.post("/api/readings", async (req, res) => {
       ],
     );
 
+    // Look up this bridge's own thresholds (each bridge can have different ones)
+    const bridgeResult = await pool.query(
+      "SELECT warning_threshold_cm, danger_threshold_cm, vibration_threshold_g FROM bridges WHERE id = $1",
+      [bridge_id],
+    );
+    const thresholds = bridgeResult.rows[0];
+
+    if (thresholds) {
+      // Check danger first, then warning, so only one water-level alert
+      // is created per reading
+      if (water_level_cm >= thresholds.danger_threshold_cm) {
+        await pool.query(
+          `INSERT INTO alerts (bridge_id, alert_type, severity, value, message)
+           VALUES ($1, 'water_level', 'danger', $2, $3)`,
+          [
+            bridge_id,
+            water_level_cm,
+            `Water level reached ${water_level_cm}cm — DANGER`,
+          ],
+        );
+      } else if (water_level_cm >= thresholds.warning_threshold_cm) {
+        await pool.query(
+          `INSERT INTO alerts (bridge_id, alert_type, severity, value, message)
+           VALUES ($1, 'water_level', 'warning', $2, $3)`,
+          [
+            bridge_id,
+            water_level_cm,
+            `Water level reached ${water_level_cm}cm — WARNING`,
+          ],
+        );
+      }
+
+      if (vibration_g >= thresholds.vibration_threshold_g) {
+        await pool.query(
+          `INSERT INTO alerts (bridge_id, alert_type, severity, value, message)
+           VALUES ($1, 'vibration', 'warning', $2, $3)`,
+          [
+            bridge_id,
+            vibration_g,
+            `Elevated vibration detected: ${vibration_g}g`,
+          ],
+        );
+      }
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong saving the reading" });
+  }
+});
+
+// GET /api/alerts
+// Returns the 50 most recent alerts across ALL bridges (not just one),
+// joined with each bridge's name/code so the frontend doesn't need
+// to look that up separately.
+app.get("/api/alerts", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT alerts.*, bridges.name AS bridge_name, bridges.code AS bridge_code
+       FROM alerts
+       JOIN bridges ON alerts.bridge_id = bridges.id
+       ORDER BY alerts.timestamp DESC
+       LIMIT 50`,
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong fetching alerts" });
   }
 });
 
