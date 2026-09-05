@@ -10,8 +10,32 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// ========== CORS CONFIGURATION ==========
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5000',
+    'https://flood-warning-webapp.vercel.app',
+    'https://floodwarning-webapp.vercel.app',
+    'https://flood-warning-backend.onrender.com'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            console.warn('❌ CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // ========== DATABASE CONNECTION ==========
@@ -102,7 +126,6 @@ app.get('/api/users', async (req, res) => {
             return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
         }
         
-        // ✅ Removed created_at
         const result = await pool.query(
             'SELECT id, name, surname, username, phone_number, role FROM users ORDER BY id'
         );
@@ -477,7 +500,7 @@ app.post('/api/reset-password', async (req, res) => {
 
 // ========== START SERVER ==========
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 API available at http://localhost:${PORT}/api`);
     console.log(`🔑 JWT_SECRET: ${JWT_SECRET}`);
