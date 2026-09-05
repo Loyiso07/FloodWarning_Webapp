@@ -1,243 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Smart Flood Monitoring System</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-        }
-
-        body {
-            background: #f4f7fb;
-            color: #1f2937;
-        }
-
-        header {
-            background: #0b3d5c;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        header h1 {
-            font-size: 26px;
-        }
-
-        header p {
-            margin-top: 6px;
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        .container {
-            width: 90%;
-            max-width: 1100px;
-            margin: 30px auto;
-        }
-
-        .status {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            text-align: center;
-        }
-
-        .status h2 {
-            margin-bottom: 10px;
-        }
-
-        .risk {
-            display: inline-block;
-            padding: 10px 25px;
-            border-radius: 25px;
-            background: #dff6e4;
-            color: #16803c;
-            font-weight: bold;
-        }
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-        }
-
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .card h3 {
-            color: #0b3d5c;
-            margin-bottom: 15px;
-        }
-
-        .value {
-            font-size: 30px;
-            font-weight: bold;
-        }
-
-        .unit {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        .weather {
-            margin-top: 25px;
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .weather h2 {
-            margin-bottom: 20px;
-            color: #0b3d5c;
-        }
-
-        .weather-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-        }
-
-        .weather-item {
-            background: #f4f7fb;
-            padding: 18px;
-            border-radius: 10px;
-        }
-
-        .weather-item strong {
-            display: block;
-            margin-top: 8px;
-            font-size: 22px;
-        }
-
-        .warning {
-            margin-top: 25px;
-            background: #fff4d6;
-            border-left: 6px solid #f0a500;
-            padding: 20px;
-            border-radius: 10px;
-        }
-
-        footer {
-            text-align: center;
-            padding: 25px;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        @media (max-width: 600px) {
-            header h1 {
-                font-size: 21px;
-            }
-
-            .container {
-                width: 94%;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <header>
-        <h1>🌧️ Smart Flood Monitoring System</h1>
-        <p>Real-time environmental and flood-risk monitoring</p>
-    </header>
+    <!-- Weather video background -->
+    <div id="weatherBackground"></div>
 
-    <div class="container">
+    <!-- Dark layer over video -->
+    <div class="video-overlay"></div>
 
-        <div class="status">
-            <h2>Flood Risk Status</h2>
-            <div class="risk">LOW RISK</div>
-            <p style="margin-top: 12px;">
-                Current conditions are being monitored.
-            </p>
-        </div>
 
-        <div class="cards">
+    <!-- Main Dashboard -->
+    <div class="dashboard">
 
-            <div class="card">
-                <h3>💧 Water Level</h3>
-                <div class="value">0.45 <span class="unit">m</span></div>
-                <p>Normal level</p>
+        <!-- HEADER -->
+        <header class="header">
+
+            <div>
+                <h1>Smart Flood Monitoring System</h1>
+                <p>Real-Time Environmental Monitoring</p>
             </div>
 
-            <div class="card">
-                <h3>🌡️ Temperature</h3>
-                <div class="value">24 <span class="unit">°C</span></div>
-                <p>Current temperature</p>
+            <div class="location">
+                📍 <span id="location">Durban</span>
             </div>
 
-            <div class="card">
-                <h3>💦 Humidity</h3>
-                <div class="value">68 <span class="unit">%</span></div>
-                <p>Current humidity</p>
-            </div>
+        </header>
 
-            <div class="card">
-                <h3>🌧️ Rainfall</h3>
-                <div class="value">12 <span class="unit">mm</span></div>
-                <p>Recent rainfall</p>
-            </div>
 
-        </div>
+        <!-- WEATHER SECTION -->
+        <section class="weather-section">
 
-        <div class="weather">
+            <div class="weather-card">
 
-            <h2>☁️ Weather Information</h2>
+                <div class="weather-main">
 
-            <div class="weather-grid">
+                    <div id="weatherIcon" class="weather-icon">
+                        🌤️
+                    </div>
 
-                <div class="weather-item">
-                    Weather
-                    <strong>Partly Cloudy</strong>
+                    <div>
+                        <h2 id="weatherCondition">Loading...</h2>
+
+                        <div id="temperature" class="temperature">
+                            --°C
+                        </div>
+                    </div>
+
                 </div>
 
-                <div class="weather-item">
-                    Wind Speed
-                    <strong>14 km/h</strong>
-                </div>
 
-                <div class="weather-item">
-                    Rain Probability
-                    <strong>35%</strong>
-                </div>
+                <div class="weather-details">
 
-                <div class="weather-item">
-                    Location
-                    <strong>Durban</strong>
+                    <div class="weather-detail">
+                        <span>💧</span>
+                        <p>Humidity</p>
+                        <strong id="humidity">--%</strong>
+                    </div>
+
+                    <div class="weather-detail">
+                        <span>🌧️</span>
+                        <p>Rainfall</p>
+                        <strong id="rainfall">-- mm</strong>
+                    </div>
+
+                    <div class="weather-detail">
+                        <span>💨</span>
+                        <p>Wind</p>
+                        <strong id="wind">-- km/h</strong>
+                    </div>
+
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
-        <div class="warning">
-            <strong>⚠️ Monitoring Alert</strong>
-            <p style="margin-top: 8px;">
-                The system is continuously monitoring water levels and
-                weather conditions for possible flood risks.
-            </p>
-        </div>
+
+        <!-- MONITORING SECTION -->
+        <section class="monitoring-section">
+
+            <h2>Bridge Monitoring</h2>
+
+            <div class="cards">
+
+                <!-- Water Level -->
+                <div class="card">
+
+                    <div class="card-icon">
+                        💧
+                    </div>
+
+                    <div>
+                        <h3>Water Level</h3>
+
+                        <p class="value">
+                            <span id="waterLevel">1.2</span> m
+                        </p>
+
+                        <p class="status normal">
+                            Normal
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <!-- Flood Risk -->
+                <div class="card">
+
+                    <div class="card-icon">
+                        🌊
+                    </div>
+
+                    <div>
+                        <h3>Flood Risk</h3>
+
+                        <p class="value">
+                            <span id="floodRisk">Low</span>
+                        </p>
+
+                        <p class="status normal">
+                            Monitoring
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <!-- System -->
+                <div class="card">
+
+                    <div class="card-icon">
+                        ⚙️
+                    </div>
+
+                    <div>
+                        <h3>System Status</h3>
+
+                        <p class="value">
+                            <span id="systemStatus">Online</span>
+                        </p>
+
+                        <p class="status normal">
+                            All Systems Operational
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- COMPONENT STATUS -->
+        <section class="components-section">
+
+            <h2>Component Status</h2>
+
+            <div class="component-grid">
+
+                <div class="component">
+                    <span>ESP32</span>
+                    <strong class="online">● Online</strong>
+                </div>
+
+                <div class="component">
+                    <span>Ultrasonic Sensor</span>
+                    <strong class="online">● Online</strong>
+                </div>
+
+                <div class="component">
+                    <span>Servo Motors</span>
+                    <strong class="online">● Online</strong>
+                </div>
+
+                <div class="component">
+                    <span>LEDs</span>
+                    <strong class="online">● Online</strong>
+                </div>
+
+                <div class="component">
+                    <span>OLED Display</span>
+                    <strong class="online">● Online</strong>
+                </div>
+
+                <div class="component">
+                    <span>Buzzer</span>
+                    <strong class="online">● Online</strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ALERT -->
+        <section class="alert-box">
+
+            <div class="alert-icon">
+                ⚠️
+            </div>
+
+            <div>
+                <h3>Flood Alert</h3>
+
+                <p id="alertMessage">
+                    No flood warning. System is monitoring the bridge.
+                </p>
+            </div>
+
+        </section>
+
+
+        <!-- LAST UPDATED -->
+        <p class="last-updated">
+            Weather data updates automatically every 10 minutes.
+        </p>
 
     </div>
 
-    <footer>
-        Smart Flood Monitoring System © 2026
-    </footer>
+
+    <script src="script.js"></script>
 
 </body>
+
 </html>
