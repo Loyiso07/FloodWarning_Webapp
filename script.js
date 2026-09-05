@@ -1,4 +1,4 @@
-const API_KEY = "YOUR_API_KEY_HERE";
+const API_KEY = "db0a7520d7e0488193e152245260509";
 
 const LOCATION = "Durban, South Africa";
 
