@@ -621,7 +621,9 @@ body {
 .weather-widget {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  min-height: 80px;
 }
 
 .weather-current {
@@ -630,8 +632,12 @@ body {
   gap: 10px;
 }
 
+.weather-current-icon {
+  font-size: 45px;
+}
+
 .weather-current-temp {
-  font-size: 22px;
+  font-size: 50px;
   font-weight: 800;
 }
 
@@ -642,8 +648,7 @@ body {
 
 .weather-days {
   display: flex;
-  gap: 14px;
-  margin-left: auto;
+  gap: 20px;
 }
 
 .weather-day {
@@ -706,4 +711,69 @@ body {
 .hourly-wind {
   font-size: 10px;
   color: var(--text-faint);
+}
+
+.hourly-icon {
+  font-size: 18px;
+  margin: 4px 0;
+}
+
+.card-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.barrier-icon {
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.alert-popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-popup-item {
+  background-color: #1a1015;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-left: 4px solid #f87171;
+  border-radius: 8px;
+  padding: 14px 16px;
+  max-width: 320px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.alert-popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f87171;
+  margin-bottom: 4px;
+}
+
+.alert-popup-message {
+  font-size: 13px;
+}
+
+.alert-popup-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
 }

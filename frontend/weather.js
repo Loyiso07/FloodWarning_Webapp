@@ -26,6 +26,17 @@ function weatherCodeToText(code) {
   return "Storm";
 }
 
+// Converts Open-Meteo's numeric weather codes into a matching emoji icon
+function weatherCodeToIcon(code) {
+  if (code === 0) return "☀️";
+  if (code <= 3) return "☁️";
+  if (code <= 48) return "🌫️";
+  if (code <= 67) return "🌧️";
+  if (code <= 77) return "❄️";
+  if (code <= 82) return "🌦️";
+  return "⛈️";
+}
+
 // Converts a wind direction in degrees (0-360) into a compass label
 function windDirectionToCompass(degrees) {
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -67,11 +78,13 @@ async function loadWeatherPage(bridgeId) {
       weather.hourly.wind_direction_10m[i],
     );
     const desc = weatherCodeToText(weather.hourly.weather_code[i]);
+    const icon = weatherCodeToIcon(weather.hourly.weather_code[i]);
 
     const item = document.createElement("div");
     item.className = "hourly-item";
     item.innerHTML = `
       <div class="hourly-time">${time.toLocaleTimeString([], { hour: "2-digit" })}</div>
+      <div class="hourly-icon">${icon}</div>
       <div class="hourly-temp">${temp}°</div>
       <div class="hourly-desc">${desc}</div>
       <div class="hourly-wind">${windSpeed}km/h ${windDir}</div>
@@ -88,11 +101,12 @@ async function loadWeatherPage(bridgeId) {
     const dayLabel = new Date(weather.daily.time[i]).toLocaleDateString([], {
       weekday: "long",
     });
+    const icon = weatherCodeToIcon(weather.daily.weather_code[i]);
     const row = document.createElement("div");
     row.className = "manage-row";
     row.innerHTML = `
       <div>
-        <div class="manage-row-title">${dayLabel}</div>
+        <div class="manage-row-title">${icon} ${dayLabel}</div>
         <div class="manage-row-sub">${weatherCodeToText(weather.daily.weather_code[i])} · ${weather.daily.precipitation_probability_max[i]}% rain</div>
       </div>
       <div class="manage-row-title">${Math.round(weather.daily.temperature_2m_max[i])}° / ${Math.round(weather.daily.temperature_2m_min[i])}°</div>

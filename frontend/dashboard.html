@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="theme.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
   </head>
   <body>
     <div class="layout">
@@ -72,22 +76,37 @@
         <!-- Stat cards -->
         <section class="stat-cards">
           <div class="card">
+            <div class="card-icon" style="color: #34d399">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
             <div class="card-label">Bridge Status</div>
             <div id="bridge-status" class="card-value">--</div>
           </div>
           <div class="card">
+            <div class="card-icon" style="color: #38bdf8">
+              <i class="fa-solid fa-droplet"></i>
+            </div>
             <div class="card-label">Water Level</div>
             <div id="water-level" class="card-value">-- cm</div>
           </div>
           <div class="card">
+            <div class="card-icon" style="color: #c084fc">
+              <i class="fa-solid fa-wave-square"></i>
+            </div>
             <div class="card-label">Vibration Status</div>
             <div id="vibration-status" class="card-value">--</div>
           </div>
           <div class="card">
+            <div class="card-icon" style="color: #fb923c">
+              <i class="fa-solid fa-volume-high"></i>
+            </div>
             <div class="card-label">Buzzer</div>
             <div id="buzzer-status" class="card-value">--</div>
           </div>
           <div class="card">
+            <div class="card-icon" style="color: #34d399">
+              <i class="fa-solid fa-wifi"></i>
+            </div>
             <div class="card-label">ESP32 Status</div>
             <div id="esp32-status" class="card-value">--</div>
           </div>
@@ -99,10 +118,16 @@
             <div class="panel-title">BARRIER STATUS</div>
             <div class="barrier-row">
               <div>
+                <div class="barrier-icon">
+                  <i class="fa-solid fa-road-barrier"></i>
+                </div>
                 <div class="barrier-label">Barrier 1 (Left Side)</div>
                 <div id="barrier1-status" class="barrier-value">--</div>
               </div>
               <div>
+                <div class="barrier-icon">
+                  <i class="fa-solid fa-road-barrier"></i>
+                </div>
                 <div class="barrier-label">Barrier 2 (Right Side)</div>
                 <div id="barrier2-status" class="barrier-value">--</div>
               </div>
@@ -136,5 +161,6 @@
     </div>
 
     <script src="script.js"></script>
+    <div id="alert-popup" class="alert-popup"></div>
   </body>
 </html>
