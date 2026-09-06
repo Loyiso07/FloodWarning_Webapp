@@ -57,10 +57,46 @@ app.get("/api/bridges/:id/readings", async (req, res) => {
   }
 });
 
+// GET /api/bridges/:id/weather
+// Fetches current + daily forecast weather for a bridge's coordinates
+// using Open-Meteo (free, no API key required). Called from the backend
+// (not the frontend directly) to keep coordinates private and avoid CORS.
+app.get("/api/bridges/:id/weather", async (req, res) => {
+  try {
+    const bridgeId = req.params.id;
+
+    const bridgeResult = await pool.query(
+      "SELECT latitude, longitude FROM bridges WHERE id = $1",
+      [bridgeId],
+    );
+
+    if (bridgeResult.rows.length === 0) {
+      return res.status(404).json({ error: "Bridge not found" });
+    }
+
+    const { latitude, longitude } = bridgeResult.rows[0];
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: "This bridge has no location set" });
+    }
+
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=auto&forecast_days=4`;
+
+    const weatherResponse = await fetch(weatherUrl);
+    const weatherData = await weatherResponse.json();
+
+    res.json(weatherData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong fetching weather" });
+  }
+});
+
 // POST /api/bridges
 // Adds a new bridge to the database. Admin-only feature on the frontend.
 // Expects a JSON body with: code, name, location,
-// warning_threshold_cm, danger_threshold_cm, vibration_threshold_g
+// warning_threshold_cm, danger_threshold_cm, vibration_threshold_g,
+// latitude, longitude
 app.post("/api/bridges", async (req, res) => {
   try {
     const {
@@ -70,12 +106,14 @@ app.post("/api/bridges", async (req, res) => {
       warning_threshold_cm,
       danger_threshold_cm,
       vibration_threshold_g,
+      latitude,
+      longitude,
     } = req.body;
 
     const result = await pool.query(
       `INSERT INTO bridges 
-        (code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g)
-       VALUES ($1, $2, $3, $4, $5, $6)
+        (code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         code,
@@ -84,6 +122,8 @@ app.post("/api/bridges", async (req, res) => {
         warning_threshold_cm,
         danger_threshold_cm,
         vibration_threshold_g,
+        latitude,
+        longitude,
       ],
     );
 

@@ -68,6 +68,8 @@ document
       danger_threshold_cm: document.getElementById("danger_threshold_cm").value,
       vibration_threshold_g: document.getElementById("vibration_threshold_g")
         .value,
+      latitude: document.getElementById("latitude").value,
+      longitude: document.getElementById("longitude").value,
     };
 
     try {

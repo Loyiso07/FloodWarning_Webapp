@@ -21,7 +21,6 @@
           <a href="#" class="nav-item active">Overview</a>
           <a href="bridges.html" class="nav-item">Bridges</a>
           <a href="alerts.html" class="nav-item">Alerts</a>
-          <a href="#" class="nav-item">History</a>
           <a href="#" class="nav-item">Weather</a>
           <a href="settings.html" class="nav-item">Settings</a>
         </nav>
@@ -95,19 +94,29 @@
         </section>
 
         <!-- Barrier status -->
-        <section class="panel">
-          <div class="panel-title">BARRIER STATUS</div>
-          <div class="barrier-row">
-            <div>
-              <div class="barrier-label">Barrier 1 (Left Side)</div>
-              <div id="barrier1-status" class="barrier-value">--</div>
+        <!-- Barrier status + Weather -->
+        <div class="two-col-row">
+          <section class="panel">
+            <div class="panel-title">BARRIER STATUS</div>
+            <div class="barrier-row">
+              <div>
+                <div class="barrier-label">Barrier 1 (Left Side)</div>
+                <div id="barrier1-status" class="barrier-value">--</div>
+              </div>
+              <div>
+                <div class="barrier-label">Barrier 2 (Right Side)</div>
+                <div id="barrier2-status" class="barrier-value">--</div>
+              </div>
             </div>
-            <div>
-              <div class="barrier-label">Barrier 2 (Right Side)</div>
-              <div id="barrier2-status" class="barrier-value">--</div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              WEATHER FORECAST — <span id="weather-location"></span>
             </div>
-          </div>
-        </section>
+            <div id="weather-widget" class="weather-widget"></div>
+          </section>
+        </div>
 
         <!-- Charts + alerts -->
         <section class="charts">

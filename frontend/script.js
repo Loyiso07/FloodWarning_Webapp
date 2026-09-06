@@ -15,6 +15,7 @@ if (!loggedInUser || isReload) {
 
 const API_BASE = "http://localhost:3000";
 let currentBridgeId = null;
+let currentBridge = null;
 let waterChart = null;
 let vibrationChart = null;
 
@@ -54,13 +55,17 @@ async function loadBridges() {
   });
 }
 
-// Fills in the bridge name, location, and code in the header
+// Fills in the bridge name, location, and code in the header,
+// stores the full bridge object for later use (thresholds, weather),
+// and loads that bridge's weather widget
 function loadBridgeDetails(bridge) {
   currentBridgeId = bridge.id;
+  currentBridge = bridge;
   document.getElementById("bridge-name").textContent =
     bridge.name.toUpperCase();
   document.getElementById("bridge-location").textContent = bridge.location;
   document.getElementById("bridge-code").textContent = bridge.code;
+  loadWeather(bridge.id);
 }
 
 // Fetches this bridge's reading history and updates the status cards + charts
@@ -101,7 +106,8 @@ function updateStatusCards(reading) {
     "Last updated: " + new Date(reading.timestamp).toLocaleString();
 }
 
-// Builds/rebuilds both history charts from the full list of readings
+// Builds/rebuilds both history charts from the full list of readings,
+// including dashed reference lines for this bridge's own thresholds
 function updateCharts(readings) {
   // Readings come back newest-first; reverse so charts read left-to-right in time
   const sorted = [...readings].reverse();
@@ -113,6 +119,18 @@ function updateCharts(readings) {
   );
   const waterData = sorted.map((r) => parseFloat(r.water_level_cm));
   const vibrationData = sorted.map((r) => parseFloat(r.vibration_g));
+
+  // Flat lines repeating the threshold value across every label,
+  // so they render as straight reference lines on the chart
+  const dangerLine = labels.map(() =>
+    parseFloat(currentBridge.danger_threshold_cm),
+  );
+  const warningLine = labels.map(() =>
+    parseFloat(currentBridge.warning_threshold_cm),
+  );
+  const vibrationThresholdLine = labels.map(() =>
+    parseFloat(currentBridge.vibration_threshold_g),
+  );
 
   const waterCtx = document.getElementById("water-level-chart");
   const vibrationCtx = document.getElementById("vibration-chart");
@@ -131,10 +149,31 @@ function updateCharts(readings) {
           data: waterData,
           borderColor: "#38bdf8",
           tension: 0.3,
+          pointStyle: "line",
+        },
+        {
+          label: "Danger",
+          data: dangerLine,
+          borderColor: "#f87171",
+          borderDash: [5, 5],
+          pointRadius: 0,
+          pointStyle: "line",
+        },
+        {
+          label: "Warning",
+          data: warningLine,
+          borderColor: "#fbbf24",
+          borderDash: [5, 5],
+          pointRadius: 0,
+          pointStyle: "line",
         },
       ],
     },
-    options: { responsive: true, maintainAspectRatio: false },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { usePointStyle: true } } },
+    },
   });
 
   vibrationChart = new Chart(vibrationCtx, {
@@ -147,11 +186,78 @@ function updateCharts(readings) {
           data: vibrationData,
           borderColor: "#c084fc",
           tension: 0.3,
+          pointStyle: "line",
+        },
+        {
+          label: "Threshold",
+          data: vibrationThresholdLine,
+          borderColor: "#f87171",
+          borderDash: [5, 5],
+          pointRadius: 0,
+          pointStyle: "line",
         },
       ],
     },
-    options: { responsive: true, maintainAspectRatio: false },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { usePointStyle: true } } },
+    },
   });
+}
+
+// Converts Open-Meteo's numeric weather codes into a short readable label
+function weatherCodeToText(code) {
+  if (code === 0) return "Clear";
+  if (code <= 3) return "Cloudy";
+  if (code <= 48) return "Fog";
+  if (code <= 67) return "Rain";
+  if (code <= 77) return "Snow";
+  if (code <= 82) return "Showers";
+  return "Storm";
+}
+
+// Fetches and displays the compact weather widget next to Barrier Status:
+// current temp/condition, plus a 3-day (today + 2 more) mini forecast
+async function loadWeather(bridgeId) {
+  const response = await fetch(`${API_BASE}/api/bridges/${bridgeId}/weather`);
+  const weather = await response.json();
+
+  if (weather.error) return;
+
+  document.getElementById("weather-location").textContent =
+    currentBridge.location;
+
+  const widget = document.getElementById("weather-widget");
+  const current = weather.current;
+  const daily = weather.daily;
+
+  let html = `
+    <div class="weather-current">
+      <div>
+        <div class="weather-current-temp">${Math.round(current.temperature_2m)}°C</div>
+        <div class="weather-current-desc">${weatherCodeToText(current.weather_code)}</div>
+      </div>
+    </div>
+    <div class="weather-days">
+  `;
+
+  for (let i = 0; i < 3; i++) {
+    const dayLabel =
+      i === 0
+        ? "Today"
+        : new Date(daily.time[i]).toLocaleDateString([], { weekday: "short" });
+    html += `
+      <div class="weather-day">
+        <div class="weather-day-label">${dayLabel}</div>
+        <div class="weather-day-temp">${Math.round(daily.temperature_2m_max[i])}°/${Math.round(daily.temperature_2m_min[i])}°</div>
+        <div class="weather-day-rain">${daily.precipitation_probability_max[i]}%</div>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  widget.innerHTML = html;
 }
 
 // Updates the critical alert banner and the Recent Alerts panel,
@@ -179,8 +285,8 @@ async function loadDashboardAlerts() {
   const listBox = document.getElementById("dashboard-alerts-list");
   listBox.innerHTML = "";
 
-  // Only show the 5 most recent alerts here (full list lives on alerts.html)
-  alerts.slice(0, 5).forEach((alert) => {
+  // Only show the 3 most recent alerts here (full list lives on alerts.html)
+  alerts.slice(0, 3).forEach((alert) => {
     const row = document.createElement("div");
     row.className = "alert-row";
     const iconColor = alert.severity === "danger" ? "#f87171" : "#fbbf24";

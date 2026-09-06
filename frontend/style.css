@@ -611,3 +611,64 @@ body {
   color: var(--text-faint);
   white-space: nowrap;
 }
+
+.two-col-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.weather-widget {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weather-current-temp {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.weather-current-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.weather-days {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.weather-day {
+  text-align: center;
+}
+
+.weather-day-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.weather-day-temp {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.weather-day-rain {
+  font-size: 10px;
+  color: #38bdf8;
+}
+
+.weather-widget {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 80px;
+}
