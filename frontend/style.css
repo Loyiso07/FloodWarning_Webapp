@@ -672,3 +672,38 @@ body {
   gap: 16px;
   min-height: 80px;
 }
+
+.hourly-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.hourly-item {
+  flex-shrink: 0;
+  text-align: center;
+  min-width: 70px;
+}
+
+.hourly-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.hourly-temp {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.hourly-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 4px 0;
+}
+
+.hourly-wind {
+  font-size: 10px;
+  color: var(--text-faint);
+}

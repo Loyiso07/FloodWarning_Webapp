@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BridgeGuard - Weather</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="theme.js"></script>
+  </head>
+  <body>
+    <div class="manage-page" style="max-width: 800px">
+      <div class="manage-header">
+        <span class="logo-text">BRIDGE<span class="accent">GUARD</span></span>
+        <a href="dashboard.html" class="back-link">&larr; Back to Dashboard</a>
+      </div>
+
+      <select
+        id="bridge-select"
+        class="bridge-select"
+        style="margin-bottom: 16px"
+      >
+        <option value="">Select bridge...</option>
+      </select>
+
+      <div class="panel">
+        <div class="panel-title">TODAY — HOURLY</div>
+        <div id="hourly-row" class="hourly-row"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">NEXT 3 DAYS</div>
+        <div id="daily-list"></div>
+      </div>
+    </div>
+
+    <script src="weather.js"></script>
+  </body>
+</html>
