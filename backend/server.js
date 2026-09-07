@@ -11,11 +11,10 @@ app.use(express.json());
 app.use(cors());
 
 const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  host: "localhost",
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // For self-signed certificates; set to true in production with a valid cert
+  },
 });
 
 app.get("/", (req, res) => {

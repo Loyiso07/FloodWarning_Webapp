@@ -387,10 +387,10 @@ function showAlertPopup(alert) {
   }, 8000);
 }
 
-// Updates the critical alert banner and the Recent Alerts panel,
-// using alerts across ALL bridges (not just the one currently viewed).
-// Also detects brand-new danger alerts on OTHER bridges and pops
-// up a notification for them.
+// Updates the critical alert banner and the Recent Alerts panel using
+// ONLY the currently viewed bridge's own alerts. Separately, checks
+// ALL bridges for brand-new danger alerts belonging to a DIFFERENT
+// bridge and pops up a cross-bridge notification for those.
 async function loadDashboardAlerts() {
   const response = await fetch(`${API_BASE}/api/alerts`);
   const alerts = await response.json();
@@ -410,11 +410,15 @@ async function loadDashboardAlerts() {
     lastSeenAlertId = Math.max(...alerts.map((a) => a.id));
   }
 
+  // From here on, only this bridge's own alerts are used —
+  // the banner and Recent Alerts panel are per-bridge, not global
+  const bridgeAlerts = alerts.filter((a) => a.bridge_id === currentBridgeId);
+
   const banner = document.getElementById("critical-banner");
   const bannerTitle = document.getElementById("critical-banner-title");
   const bannerSub = document.getElementById("critical-banner-sub");
 
-  const dangerAlerts = alerts.filter((a) => a.severity === "danger");
+  const dangerAlerts = bridgeAlerts.filter((a) => a.severity === "danger");
 
   if (dangerAlerts.length > 0) {
     banner.classList.add("danger");
@@ -423,14 +427,15 @@ async function loadDashboardAlerts() {
   } else {
     banner.classList.remove("danger");
     bannerTitle.textContent = "No Critical Alerts";
-    bannerSub.textContent = "All monitored bridges are currently safe.";
+    bannerSub.textContent = "This bridge is currently safe.";
   }
 
   const listBox = document.getElementById("dashboard-alerts-list");
   listBox.innerHTML = "";
 
-  // Only show the 3 most recent alerts here (full list lives on alerts.html)
-  alerts.slice(0, 3).forEach((alert) => {
+  // Only show this bridge's 3 most recent alerts
+  // (the full cross-bridge list still lives on alerts.html)
+  bridgeAlerts.slice(0, 3).forEach((alert) => {
     const row = document.createElement("div");
     row.className = "alert-row";
     const iconColor = alert.severity === "danger" ? "#f87171" : "#fbbf24";

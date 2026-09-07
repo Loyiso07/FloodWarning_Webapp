@@ -52,4 +52,3 @@ ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT true;
 ALTER TABLE bridges ADD COLUMN latitude DECIMAL(9, 6);
 ALTER TABLE bridges ADD COLUMN longitude DECIMAL(9, 6);
 
-UPDATE bridges SET latitude = -29.7178, longitude = 30.9581 WHERE id = 1;
