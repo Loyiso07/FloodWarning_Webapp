@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://floodwarning-webapp-z0sk.onrender.com";
 
 const params = new URLSearchParams(window.location.search);
 if (params.get("reason") === "notloggedin") {

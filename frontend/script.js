@@ -1,5 +1,5 @@
 // Redirect to login if not authenticated, or if this page was reloaded
-// (reload = force re-login for security)
+
 const loggedInUser = JSON.parse(localStorage.getItem("bridgeguard_user"));
 
 const navEntries = performance.getEntriesByType("navigation");
@@ -13,35 +13,42 @@ if (!loggedInUser || isReload) {
   window.location.href = "login.html?reason=notloggedin";
 }
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://floodwarning-webapp-z0sk.onrender.com";
+
 let currentBridgeId = null;
 let currentBridge = null;
 let waterChart = null;
 let vibrationChart = null;
 let lastSeenAlertId = 0;
 
-// Loads all bridges into the dropdown, then shows either the one
-// requested via ?bridge=<id> in the URL, or the first one by default
+// Loads all bridges into the dropdown
 async function loadBridges() {
   const response = await fetch(`${API_BASE}/api/bridges`);
   const bridges = await response.json();
 
   const select = document.getElementById("bridge-select");
+
+  select.innerHTML = "";
+
   bridges.forEach((bridge) => {
     const option = document.createElement("option");
+
     option.value = bridge.id;
     option.textContent = `${bridge.name} (${bridge.code})`;
+
     select.appendChild(option);
   });
 
   const params = new URLSearchParams(window.location.search);
   const requestedBridgeId = params.get("bridge");
+
   const initialBridge = requestedBridgeId
     ? bridges.find((b) => b.id == requestedBridgeId)
     : bridges[0];
 
   if (initialBridge) {
     select.value = initialBridge.id;
+
     loadBridgeDetails(initialBridge);
     loadReadings(initialBridge.id);
   }
@@ -49,6 +56,7 @@ async function loadBridges() {
   // Switch bridges when the dropdown selection changes
   select.addEventListener("change", () => {
     const selected = bridges.find((b) => b.id == select.value);
+
     if (selected) {
       loadBridgeDetails(selected);
       loadReadings(selected.id);
@@ -56,24 +64,27 @@ async function loadBridges() {
   });
 }
 
-// Fills in the bridge name, location, and code in the header,
-// stores the full bridge object for later use (thresholds, weather),
-// and loads that bridge's weather widget
+// Displays bridge information
 function loadBridgeDetails(bridge) {
   currentBridgeId = bridge.id;
   currentBridge = bridge;
+
   document.getElementById("bridge-name").textContent =
     bridge.name.toUpperCase();
+
   document.getElementById("bridge-location").textContent = bridge.location;
+
   document.getElementById("bridge-code").textContent = bridge.code;
+
   loadWeather(bridge.id);
 }
 
-// Fetches this bridge's reading history and updates the status cards + charts.
-// If the bridge has no readings at all, resets everything to a blank state
-// instead of leaving the previous bridge's data showing.
+// Loads readings for the selected bridge
 async function loadReadings(bridgeId) {
+  if (!bridgeId) return;
+
   const response = await fetch(`${API_BASE}/api/bridges/${bridgeId}/readings`);
+
   const readings = await response.json();
 
   if (readings.length === 0) {
@@ -82,14 +93,12 @@ async function loadReadings(bridgeId) {
   }
 
   const latest = readings[0];
+
   updateStatusCards(latest);
   updateCharts(readings);
 }
 
-// Resets all reading-dependent fields to a blank state. Still draws both
-// charts with a fixed axis scale and this bridge's threshold lines, just
-// with no actual data line, since there are no readings yet.
-// Weather is untouched, since it doesn't depend on readings.
+// Resets reading-related dashboard fields
 function resetDashboardFields() {
   document.getElementById("bridge-status").textContent = "NO DATA";
   document.getElementById("water-level").textContent = "-- cm";
@@ -103,27 +112,43 @@ function resetDashboardFields() {
   const waterCtx = document.getElementById("water-level-chart");
   const vibrationCtx = document.getElementById("vibration-chart");
 
-  if (waterChart) waterChart.destroy();
-  if (vibrationChart) vibrationChart.destroy();
+  if (waterChart) {
+    waterChart.destroy();
+  }
 
-  // Two blank labels just to give the threshold lines something to span
+  if (vibrationChart) {
+    vibrationChart.destroy();
+  }
+
+  if (!currentBridge) return;
+
   const emptyLabels = ["", ""];
+
   const dangerLine = emptyLabels.map(() =>
     parseFloat(currentBridge.danger_threshold_cm),
   );
+
   const warningLine = emptyLabels.map(() =>
     parseFloat(currentBridge.warning_threshold_cm),
   );
+
   const vibrationThresholdLine = emptyLabels.map(() =>
     parseFloat(currentBridge.vibration_threshold_g),
   );
 
   waterChart = new Chart(waterCtx, {
     type: "line",
+
     data: {
       labels: emptyLabels,
+
       datasets: [
-        { label: "Water Level (cm)", data: [], pointStyle: "line" },
+        {
+          label: "Water Level (cm)",
+          data: [],
+          pointStyle: "line",
+        },
+
         {
           label: "Danger",
           data: dangerLine,
@@ -132,6 +157,7 @@ function resetDashboardFields() {
           pointRadius: 0,
           pointStyle: "line",
         },
+
         {
           label: "Warning",
           data: warningLine,
@@ -142,20 +168,34 @@ function resetDashboardFields() {
         },
       ],
     },
+
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { min: 0, max: 100 } },
-      plugins: { legend: { labels: { usePointStyle: true } } },
+
+      plugins: {
+        legend: {
+          labels: {
+            usePointStyle: true,
+          },
+        },
+      },
     },
   });
 
   vibrationChart = new Chart(vibrationCtx, {
     type: "line",
+
     data: {
       labels: emptyLabels,
+
       datasets: [
-        { label: "Vibration (g)", data: [], pointStyle: "line" },
+        {
+          label: "Vibration",
+          data: [],
+          pointStyle: "line",
+        },
+
         {
           label: "Threshold",
           data: vibrationThresholdLine,
@@ -166,75 +206,129 @@ function resetDashboardFields() {
         },
       ],
     },
+
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { min: 0, max: 1 } },
-      plugins: { legend: { labels: { usePointStyle: true } } },
+
+      plugins: {
+        legend: {
+          labels: {
+            usePointStyle: true,
+          },
+        },
+      },
     },
   });
 }
 
-// Updates the top status cards using the single most recent reading
+// Updates the dashboard status cards
 function updateStatusCards(reading) {
-  // PostgreSQL DECIMAL values come back as strings, so convert to numbers
+  if (!currentBridge) return;
+
   const waterLevel = parseFloat(reading.water_level_cm);
   const vibration = parseFloat(reading.vibration_g);
 
-  document.getElementById("water-level").textContent = `${waterLevel} cm`;
+  const warningThreshold = parseFloat(currentBridge.warning_threshold_cm);
+
+  const dangerThreshold = parseFloat(currentBridge.danger_threshold_cm);
+
+  const vibrationThreshold = parseFloat(currentBridge.vibration_threshold_g);
+
+  // Water level
+  if (waterLevel < 0) {
+    document.getElementById("water-level").textContent = "No reading";
+  } else {
+    document.getElementById("water-level").textContent = `${waterLevel} cm`;
+  }
+
+  // Vibration status
   document.getElementById("vibration-status").textContent =
-    vibration > 0.7 ? "HIGH" : "NORMAL";
-  document.getElementById("bridge-status").textContent =
-    waterLevel >= 80 ? "DANGER" : waterLevel >= 50 ? "WARNING" : "SAFE";
+    vibration >= vibrationThreshold ? "HIGH" : "NORMAL";
+
+  // Bridge status
+  if (waterLevel < 0) {
+    document.getElementById("bridge-status").textContent = "NO DATA";
+  } else if (waterLevel <= dangerThreshold) {
+    document.getElementById("bridge-status").textContent = "DANGER";
+  } else if (waterLevel <= warningThreshold) {
+    document.getElementById("bridge-status").textContent = "WARNING";
+  } else {
+    document.getElementById("bridge-status").textContent = "SAFE";
+  }
+
+  // Buzzer status
   document.getElementById("buzzer-status").textContent = reading.buzzer_status
     ? "ACTIVE"
     : "INACTIVE";
+
+  // Barrier 1
   document.getElementById("barrier1-status").textContent =
     reading.barrier1_status ? "OPEN" : "CLOSED";
+
+  // Barrier 2
   document.getElementById("barrier2-status").textContent =
     reading.barrier2_status ? "OPEN" : "CLOSED";
+
+  // ESP32 connection
   document.getElementById("esp32-status").textContent = "CONNECTED";
+
+  // Last update
   document.getElementById("last-updated").textContent =
     "Last updated: " + new Date(reading.timestamp).toLocaleString();
 }
 
-// Builds/rebuilds both history charts from the full list of readings,
-// including dashed reference lines for this bridge's own thresholds
+// Builds the water and vibration charts
 function updateCharts(readings) {
-  // Readings come back newest-first; reverse so charts read left-to-right in time
+  if (!currentBridge) return;
+
+  // Readings come newest-first
   const sorted = [...readings].reverse();
+
   const labels = sorted.map((r) =>
     new Date(r.timestamp).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     }),
   );
+
   const waterData = sorted.map((r) => parseFloat(r.water_level_cm));
+
   const vibrationData = sorted.map((r) => parseFloat(r.vibration_g));
 
-  // Flat lines repeating the threshold value across every label,
-  // so they render as straight reference lines on the chart
+  // Threshold lines
   const dangerLine = labels.map(() =>
     parseFloat(currentBridge.danger_threshold_cm),
   );
+
   const warningLine = labels.map(() =>
     parseFloat(currentBridge.warning_threshold_cm),
   );
+
   const vibrationThresholdLine = labels.map(() =>
     parseFloat(currentBridge.vibration_threshold_g),
   );
 
   const waterCtx = document.getElementById("water-level-chart");
+
   const vibrationCtx = document.getElementById("vibration-chart");
 
-  // Destroy old chart instances before redrawing, or they'll stack up
-  if (waterChart) waterChart.destroy();
-  if (vibrationChart) vibrationChart.destroy();
+  // Destroy old charts
+  if (waterChart) {
+    waterChart.destroy();
+  }
 
+  if (vibrationChart) {
+    vibrationChart.destroy();
+  }
+
+  // Water level chart
   waterChart = new Chart(waterCtx, {
     type: "line",
+
     data: {
       labels,
+
       datasets: [
         {
           label: "Water Level (cm)",
@@ -243,6 +337,7 @@ function updateCharts(readings) {
           tension: 0.3,
           pointStyle: "line",
         },
+
         {
           label: "Danger",
           data: dangerLine,
@@ -251,6 +346,7 @@ function updateCharts(readings) {
           pointRadius: 0,
           pointStyle: "line",
         },
+
         {
           label: "Warning",
           data: warningLine,
@@ -261,25 +357,37 @@ function updateCharts(readings) {
         },
       ],
     },
+
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { usePointStyle: true } } },
+
+      plugins: {
+        legend: {
+          labels: {
+            usePointStyle: true,
+          },
+        },
+      },
     },
   });
 
+  // Vibration chart
   vibrationChart = new Chart(vibrationCtx, {
     type: "line",
+
     data: {
       labels,
+
       datasets: [
         {
-          label: "Vibration (g)",
+          label: "Vibration",
           data: vibrationData,
           borderColor: "#c084fc",
           tension: 0.3,
           pointStyle: "line",
         },
+
         {
           label: "Threshold",
           data: vibrationThresholdLine,
@@ -290,15 +398,23 @@ function updateCharts(readings) {
         },
       ],
     },
+
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { usePointStyle: true } } },
+
+      plugins: {
+        legend: {
+          labels: {
+            usePointStyle: true,
+          },
+        },
+      },
     },
   });
 }
 
-// Converts Open-Meteo's numeric weather codes into a short readable label
+// Converts weather codes to text
 function weatherCodeToText(code) {
   if (code === 0) return "Clear";
   if (code <= 3) return "Cloudy";
@@ -306,10 +422,11 @@ function weatherCodeToText(code) {
   if (code <= 67) return "Rain";
   if (code <= 77) return "Snow";
   if (code <= 82) return "Showers";
+
   return "Storm";
 }
 
-// Converts Open-Meteo's numeric weather codes into a matching emoji icon
+// Converts weather codes to icons
 function weatherCodeToIcon(code) {
   if (code === 0) return "☀️";
   if (code <= 3) return "☁️";
@@ -317,14 +434,14 @@ function weatherCodeToIcon(code) {
   if (code <= 67) return "🌧️";
   if (code <= 77) return "❄️";
   if (code <= 82) return "🌦️";
+
   return "⛈️";
 }
 
-// Fetches and displays the compact weather widget next to Barrier Status:
-// a large icon + current temp/condition, plus a 3-day (today + 2 more)
-// mini forecast, each with its own icon above the temperature
+// Loads weather for the selected bridge
 async function loadWeather(bridgeId) {
   const response = await fetch(`${API_BASE}/api/bridges/${bridgeId}/weather`);
+
   const weather = await response.json();
 
   if (weather.error) return;
@@ -333,17 +450,31 @@ async function loadWeather(bridgeId) {
     currentBridge.location;
 
   const widget = document.getElementById("weather-widget");
+
   const current = weather.current;
   const daily = weather.daily;
 
   let html = `
     <div class="weather-current">
-      <div class="weather-current-icon">${weatherCodeToIcon(current.weather_code)}</div>
-      <div>
-        <div class="weather-current-temp">${Math.round(current.temperature_2m)}°C</div>
-        <div class="weather-current-desc">${weatherCodeToText(current.weather_code)}</div>
+
+      <div class="weather-current-icon">
+        ${weatherCodeToIcon(current.weather_code)}
       </div>
+
+      <div>
+
+        <div class="weather-current-temp">
+          ${Math.round(current.temperature_2m)}°C
+        </div>
+
+        <div class="weather-current-desc">
+          ${weatherCodeToText(current.weather_code)}
+        </div>
+
+      </div>
+
     </div>
+
     <div class="weather-days">
   `;
 
@@ -352,51 +483,73 @@ async function loadWeather(bridgeId) {
       i === 0
         ? "Today"
         : new Date(daily.time[i]).toLocaleDateString([], { weekday: "short" });
+
     html += `
       <div class="weather-day">
-        <div class="weather-day-label">${dayLabel}</div>
-        <div class="weather-day-icon">${weatherCodeToIcon(daily.weather_code[i])}</div>
-        <div class="weather-day-temp">${Math.round(daily.temperature_2m_max[i])}°/${Math.round(daily.temperature_2m_min[i])}°</div>
-        <div class="weather-day-rain">${daily.precipitation_probability_max[i]}%</div>
+
+        <div class="weather-day-label">
+          ${dayLabel}
+        </div>
+
+        <div class="weather-day-icon">
+          ${weatherCodeToIcon(daily.weather_code[i])}
+        </div>
+
+        <div class="weather-day-temp">
+          ${Math.round(daily.temperature_2m_max[i])}°/
+          ${Math.round(daily.temperature_2m_min[i])}°
+        </div>
+
+        <div class="weather-day-rain">
+          ${daily.precipitation_probability_max[i]}%
+        </div>
+
       </div>
     `;
   }
 
   html += `</div>`;
+
   widget.innerHTML = html;
 }
 
-// Shows a temporary pop-up notification in the top-right corner for a
-// critical alert that belongs to a DIFFERENT bridge than the one being
-// viewed right now — this is the "global alert system" behavior.
+// Shows a pop-up for a critical alert from another bridge
 function showAlertPopup(alert) {
   const container = document.getElementById("alert-popup");
 
   const item = document.createElement("div");
+
   item.className = "alert-popup-item";
+
   item.innerHTML = `
-    <div class="alert-popup-title">⚠ Critical Alert — Another Bridge</div>
-    <div class="alert-popup-message">${alert.message}</div>
-    <div class="alert-popup-sub">${alert.bridge_name} (${alert.bridge_code})</div>
+    <div class="alert-popup-title">
+      ⚠ Critical Alert — Another Bridge
+    </div>
+
+    <div class="alert-popup-message">
+      ${alert.message}
+    </div>
+
+    <div class="alert-popup-sub">
+      ${alert.bridge_name} (${alert.bridge_code})
+    </div>
   `;
+
   container.appendChild(item);
 
-  // Automatically remove the popup after 8 seconds so they don't pile up
+  // Remove popup after 8 seconds
   setTimeout(() => {
     item.remove();
   }, 8000);
 }
 
-// Updates the critical alert banner and the Recent Alerts panel using
-// ONLY the currently viewed bridge's own alerts. Separately, checks
-// ALL bridges for brand-new danger alerts belonging to a DIFFERENT
-// bridge and pops up a cross-bridge notification for those.
+// Loads alerts for the dashboard
 async function loadDashboardAlerts() {
   const response = await fetch(`${API_BASE}/api/alerts`);
+
   const alerts = await response.json();
 
-  // Alerts we haven't reacted to yet, that are dangerous, and that
-  // belong to a bridge other than the one currently being viewed
+  // Find new danger alerts from other bridges
   const newDangerAlerts = alerts.filter(
     (a) =>
       a.id > lastSeenAlertId &&
@@ -404,58 +557,87 @@ async function loadDashboardAlerts() {
       a.bridge_id !== currentBridgeId,
   );
 
-  newDangerAlerts.forEach((alert) => showAlertPopup(alert));
+  newDangerAlerts.forEach((alert) => {
+    showAlertPopup(alert);
+  });
 
   if (alerts.length > 0) {
     lastSeenAlertId = Math.max(...alerts.map((a) => a.id));
   }
 
-  // From here on, only this bridge's own alerts are used —
-  // the banner and Recent Alerts panel are per-bridge, not global
+  // Only use alerts for the selected bridge
   const bridgeAlerts = alerts.filter((a) => a.bridge_id === currentBridgeId);
 
   const banner = document.getElementById("critical-banner");
+
   const bannerTitle = document.getElementById("critical-banner-title");
+
   const bannerSub = document.getElementById("critical-banner-sub");
 
   const dangerAlerts = bridgeAlerts.filter((a) => a.severity === "danger");
 
   if (dangerAlerts.length > 0) {
     banner.classList.add("danger");
-    bannerTitle.textContent = `${dangerAlerts.length} Critical Alert${dangerAlerts.length > 1 ? "s" : ""}`;
+
+    bannerTitle.textContent = `${dangerAlerts.length} Critical Alert${
+      dangerAlerts.length > 1 ? "s" : ""
+    }`;
+
     bannerSub.textContent = dangerAlerts[0].message;
   } else {
     banner.classList.remove("danger");
+
     bannerTitle.textContent = "No Critical Alerts";
+
     bannerSub.textContent = "This bridge is currently safe.";
   }
 
+  // Recent alerts
   const listBox = document.getElementById("dashboard-alerts-list");
+
   listBox.innerHTML = "";
 
-  // Only show this bridge's 3 most recent alerts
-  // (the full cross-bridge list still lives on alerts.html)
   bridgeAlerts.slice(0, 3).forEach((alert) => {
     const row = document.createElement("div");
+
     row.className = "alert-row";
+
     const iconColor = alert.severity === "danger" ? "#f87171" : "#fbbf24";
+
     row.innerHTML = `
-      <span class="alert-icon" style="color: ${iconColor};">&#9888;</span>
+      <span
+        class="alert-icon"
+        style="color: ${iconColor};"
+      >
+        &#9888;
+      </span>
+
       <div class="alert-text">
-        <div class="alert-message">${alert.message}</div>
-        <div class="alert-sub">${alert.bridge_name}</div>
+
+        <div class="alert-message">
+          ${alert.message}
+        </div>
+
+        <div class="alert-sub">
+          ${alert.bridge_name}
+        </div>
+
       </div>
     `;
+
     listBox.appendChild(row);
   });
 }
 
+// Start dashboard
 loadBridges();
 loadDashboardAlerts();
 
-// Every 10 seconds: refresh the currently viewed bridge's readings/charts,
-// and check for new alerts (including popping up cross-bridge critical ones)
+// Refresh readings and alerts every 10 seconds
 setInterval(() => {
-  loadReadings(currentBridgeId);
+  if (currentBridgeId) {
+    loadReadings(currentBridgeId);
+  }
+
   loadDashboardAlerts();
 }, 10000);

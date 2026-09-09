@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://floodwarning-webapp-z0sk.onrender.com";
 
 const loggedInUser = JSON.parse(localStorage.getItem("bridgeguard_user"));
 

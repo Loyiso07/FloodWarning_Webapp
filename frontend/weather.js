@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://floodwarning-webapp-z0sk.onrender.com";
 
 // Redirect to login if not authenticated, or if this page was reloaded
 // (reload = force re-login for security)
