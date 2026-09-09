@@ -5,20 +5,21 @@ function Readings() {
     const [readings, setReadings] = useState([]);
     const [bridges, setBridges] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [formData, setFormData] = useState({
-        bridge_id: '',
-        water_level_cm: '',
-        vibration_g: '',
-        barrier1_status: false,
-        barrier2_status: false,
-        buzzer_status: false
-    });
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortField, setSortField] = useState('timestamp');
+    const [sortDirection, setSortDirection] = useState('desc');
+    const [selectedBridge, setSelectedBridge] = useState('');
+    const [filteredReadings, setFilteredReadings] = useState([]);
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        filterAndSortReadings();
+    }, [readings, searchTerm, selectedBridge, sortField, sortDirection]);
 
     const fetchData = async () => {
         try {
@@ -26,8 +27,8 @@ function Readings() {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [readingsRes, bridgesRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/readings?limit=20', { headers }),
-                axios.get('http://localhost:5000/api/bridges', { headers })
+                axios.get(`${API_URL}/api/readings?limit=100`, { headers }),
+                axios.get(`${API_URL}/api/bridges`, { headers })
             ]);
 
             setReadings(readingsRes.data);
@@ -39,169 +40,218 @@ function Readings() {
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setSuccess('');
+    const filterAndSortReadings = () => {
+        let filtered = [...readings];
 
-        try {
-            const token = localStorage.getItem('token');
-            const headers = { Authorization: `Bearer ${token}` };
+        // Filter by bridge
+        if (selectedBridge) {
+            filtered = filtered.filter(r => r.bridge_id === parseInt(selectedBridge));
+        }
 
-            await axios.post('http://localhost:5000/api/readings', {
-                ...formData,
-                water_level_cm: parseFloat(formData.water_level_cm),
-                vibration_g: parseFloat(formData.vibration_g),
-                barrier1_status: formData.barrier1_status,
-                barrier2_status: formData.barrier2_status,
-                buzzer_status: formData.buzzer_status
-            }, { headers });
+        // Filter by search term (bridge name)
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(r => 
+                r.bridge_name?.toLowerCase().includes(term) ||
+                r.bridge_code?.toLowerCase().includes(term)
+            );
+        }
 
-            setSuccess('Reading added successfully!');
-            setFormData({
-                bridge_id: '',
-                water_level_cm: '',
-                vibration_g: '',
-                barrier1_status: false,
-                barrier2_status: false,
-                buzzer_status: false
-            });
-            fetchData();
+        // Sort
+        filtered.sort((a, b) => {
+            let valA, valB;
+            
+            switch (sortField) {
+                case 'timestamp':
+                    valA = new Date(a.timestamp);
+                    valB = new Date(b.timestamp);
+                    break;
+                case 'water_level_cm':
+                    valA = a.water_level_cm;
+                    valB = b.water_level_cm;
+                    break;
+                case 'vibration_g':
+                    valA = a.vibration_g;
+                    valB = b.vibration_g;
+                    break;
+                case 'bridge_name':
+                    valA = a.bridge_name || '';
+                    valB = b.bridge_name || '';
+                    break;
+                case 'alert_level':
+                    const order = { 'danger': 0, 'warning': 1, 'normal': 2 };
+                    valA = order[a.alert_level] || 3;
+                    valB = order[b.alert_level] || 3;
+                    break;
+                default:
+                    valA = a.timestamp;
+                    valB = b.timestamp;
+            }
 
-            setTimeout(() => setSuccess(''), 3000);
-        } catch (error) {
-            setError(error.response?.data?.error || 'Failed to add reading');
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        setFilteredReadings(filtered);
+    };
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
         }
     };
 
+    const getSortIcon = (field) => {
+        if (sortField !== field) return '↕';
+        return sortDirection === 'asc' ? '↑' : '↓';
+    };
+
+    const clearFilters = () => {
+        setSearchTerm('');
+        setSelectedBridge('');
+        setSortField('timestamp');
+        setSortDirection('desc');
+    };
+
     if (loading) return <div className="loading">Loading readings...</div>;
+
+    const hasFilters = searchTerm || selectedBridge;
 
     return (
         <div className="page readings-page">
             <div className="page-header">
                 <h1>📊 Sensor Readings</h1>
+                <span className="reading-count">Total: {filteredReadings.length} readings</span>
             </div>
 
-            {error && <div className="error-message">{error}</div>}
-            {success && <div className="success-message">{success}</div>}
+            {/* Search and Filter Bar */}
+            <div className="search-filter-bar">
+                <div className="search-group">
+                    <input
+                        type="text"
+                        placeholder="🔍 Search by bridge name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="search-input"
+                    />
+                </div>
 
-            {/* Add Reading Form */}
-            <div className="form-container">
-                <h2>Add New Reading</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>Bridge</label>
-                            <select
-                                value={formData.bridge_id}
-                                onChange={(e) => setFormData({ ...formData, bridge_id: e.target.value })}
-                                required
-                            >
-                                <option value="">Select a bridge</option>
-                                {bridges.map(bridge => (
-                                    <option key={bridge.id} value={bridge.id}>
-                                        {bridge.name} ({bridge.code})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Water Level (cm)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                value={formData.water_level_cm}
-                                onChange={(e) => setFormData({ ...formData, water_level_cm: e.target.value })}
-                                required
-                                placeholder="e.g., 12.5"
-                            />
-                        </div>
-                    </div>
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>Vibration (g)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={formData.vibration_g}
-                                onChange={(e) => setFormData({ ...formData, vibration_g: e.target.value })}
-                                required
-                                placeholder="e.g., 1.2"
-                            />
-                        </div>
-                        <div className="form-group checkbox-group">
-                            <label>Controls</label>
-                            <div className="checkbox-row">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.barrier1_status}
-                                        onChange={(e) => setFormData({ ...formData, barrier1_status: e.target.checked })}
-                                    />
-                                    Barrier 1
-                                </label>
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.barrier2_status}
-                                        onChange={(e) => setFormData({ ...formData, barrier2_status: e.target.checked })}
-                                    />
-                                    Barrier 2
-                                </label>
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.buzzer_status}
-                                        onChange={(e) => setFormData({ ...formData, buzzer_status: e.target.checked })}
-                                    />
-                                    Buzzer
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="submit" className="btn-success">Add Reading</button>
-                </form>
+                <div className="filter-group">
+                    <select
+                        value={selectedBridge}
+                        onChange={(e) => setSelectedBridge(e.target.value)}
+                        className="filter-select"
+                    >
+                        <option value="">All Bridges</option>
+                        {bridges.map(bridge => (
+                            <option key={bridge.id} value={bridge.id}>
+                                {bridge.name} ({bridge.code})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter-actions">
+                    {hasFilters && (
+                        <button onClick={clearFilters} className="btn-clear">
+                            ✕ Clear Filters
+                        </button>
+                    )}
+                    <button onClick={fetchData} className="btn-refresh">
+                        🔄 Refresh
+                    </button>
+                </div>
             </div>
 
-            {/* Readings List */}
+            {/* Sort Controls */}
+            <div className="sort-controls">
+                <span className="sort-label">Sort by:</span>
+                <button 
+                    className={`sort-btn ${sortField === 'timestamp' ? 'active' : ''}`}
+                    onClick={() => handleSort('timestamp')}
+                >
+                    Time {getSortIcon('timestamp')}
+                </button>
+                <button 
+                    className={`sort-btn ${sortField === 'water_level_cm' ? 'active' : ''}`}
+                    onClick={() => handleSort('water_level_cm')}
+                >
+                    Water Level {getSortIcon('water_level_cm')}
+                </button>
+                <button 
+                    className={`sort-btn ${sortField === 'vibration_g' ? 'active' : ''}`}
+                    onClick={() => handleSort('vibration_g')}
+                >
+                    Vibration {getSortIcon('vibration_g')}
+                </button>
+                <button 
+                    className={`sort-btn ${sortField === 'alert_level' ? 'active' : ''}`}
+                    onClick={() => handleSort('alert_level')}
+                >
+                    Status {getSortIcon('alert_level')}
+                </button>
+                <button 
+                    className={`sort-btn ${sortField === 'bridge_name' ? 'active' : ''}`}
+                    onClick={() => handleSort('bridge_name')}
+                >
+                    Bridge {getSortIcon('bridge_name')}
+                </button>
+            </div>
+
+            {/* Readings Table */}
             <div className="readings-list">
-                <h2>Recent Readings ({readings.length})</h2>
-                {readings.length === 0 ? (
-                    <p className="no-data">No readings yet.</p>
+                {filteredReadings.length === 0 ? (
+                    <div className="no-data">
+                        <p>No readings found</p>
+                        {hasFilters && (
+                            <button onClick={clearFilters} className="btn-clear">
+                                Clear all filters
+                            </button>
+                        )}
+                    </div>
                 ) : (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Bridge</th>
-                                <th>Water Level</th>
-                                <th>Vibration</th>
-                                <th>Barriers</th>
-                                <th>Buzzer</th>
-                                <th>Status</th>
-                                <th>Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {readings.map(reading => (
-                                <tr key={reading.id}>
-                                    <td>{reading.bridge_name}</td>
-                                    <td>{reading.water_level_cm}cm</td>
-                                    <td>{reading.vibration_g}g</td>
-                                    <td>
-                                        {reading.barrier1_status ? '🔒' : '🔓'}
-                                        {reading.barrier2_status ? '🔒' : '🔓'}
-                                    </td>
-                                    <td>{reading.buzzer_status ? '🔊' : '🔇'}</td>
-                                    <td>
-                                        <span className={`status-${reading.alert_level}`}>
-                                            {reading.alert_level}
-                                        </span>
-                                    </td>
-                                    <td>{new Date(reading.timestamp).toLocaleString()}</td>
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Bridge</th>
+                                    <th>Water Level</th>
+                                    <th>Vibration</th>
+                                    <th>Barriers</th>
+                                    <th>Buzzer</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {filteredReadings.map(reading => (
+                                    <tr key={reading.id}>
+                                        <td>
+                                            <strong>{reading.bridge_name}</strong>
+                                            <span className="bridge-code-small">{reading.bridge_code}</span>
+                                        </td>
+                                        <td>{reading.water_level_cm}cm</td>
+                                        <td>{reading.vibration_g}g</td>
+                                        <td>
+                                            {reading.barrier1_status ? '🔒' : '🔓'}
+                                            {reading.barrier2_status ? '🔒' : '🔓'}
+                                        </td>
+                                        <td>{reading.buzzer_status ? '🔊' : '🔇'}</td>
+                                        <td>
+                                            <span className={`status-${reading.alert_level}`}>
+                                                {reading.alert_level}
+                                            </span>
+                                        </td>
+                                        <td>{new Date(reading.timestamp).toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

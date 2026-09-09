@@ -4,7 +4,13 @@
   "description": "IoT-based bridge flood monitoring system with real-time alerts and automated barrier control.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "build": "cd frontend && npm install && npm run build",
+    "install-backend": "cd backend && npm install",
+    "install-frontend": "cd frontend && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm run install-backend && npm run install-frontend"
   },
   "repository": {
     "type": "git",

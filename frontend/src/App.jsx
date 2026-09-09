@@ -67,7 +67,7 @@ function App() {
                             <button onClick={handleLogout} className="logout-btn">Logout</button>
                         </div>
                         <div className="user-info">
-                            Welcome, {user?.name} ({user?.role})
+                            Welcome, {user?.name} ({user?.role === 'admin' ? 'admin' : 'user'})
                         </div>
                     </nav>
                 )}

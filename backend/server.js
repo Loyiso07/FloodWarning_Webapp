@@ -10,8 +10,32 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// ========== CORS CONFIGURATION ==========
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5000',
+    'https://flood-warning-webapp.vercel.app',
+    'https://floodwarning-webapp.vercel.app',
+    'https://flood-warning-backend.onrender.com',
+    'https://floodwarning-webapp.onrender.com'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            console.warn('❌ CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // ========== DATABASE CONNECTION ==========
@@ -102,7 +126,6 @@ app.get('/api/users', async (req, res) => {
             return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
         }
         
-        // ✅ Removed created_at
         const result = await pool.query(
             'SELECT id, name, surname, username, phone_number, role FROM users ORDER BY id'
         );
@@ -196,6 +219,7 @@ app.post('/api/register', async (req, res) => {
 
 // ========== BRIDGE ENDPOINTS ==========
 
+// Get all bridges
 app.get('/api/bridges', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM bridges ORDER BY id');
@@ -206,6 +230,23 @@ app.get('/api/bridges', async (req, res) => {
     }
 });
 
+// Get single bridge
+app.get('/api/bridges/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query('SELECT * FROM bridges WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Bridge not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching bridge:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create new bridge
 app.post('/api/bridges', async (req, res) => {
     const { code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g } = req.body;
     
@@ -223,6 +264,7 @@ app.post('/api/bridges', async (req, res) => {
     }
 });
 
+// Update bridge
 app.put('/api/bridges/:id', async (req, res) => {
     const { id } = req.params;
     const { code, name, location, warning_threshold_cm, danger_threshold_cm, vibration_threshold_g } = req.body;
@@ -246,6 +288,7 @@ app.put('/api/bridges/:id', async (req, res) => {
     }
 });
 
+// Delete bridge (with cascade)
 app.delete('/api/bridges/:id', async (req, res) => {
     const { id } = req.params;
     
@@ -268,6 +311,7 @@ app.delete('/api/bridges/:id', async (req, res) => {
 
 // ========== READINGS ENDPOINTS ==========
 
+// Get all readings
 app.get('/api/readings', async (req, res) => {
     const { bridge_id, limit } = req.query;
     
@@ -299,6 +343,7 @@ app.get('/api/readings', async (req, res) => {
     }
 });
 
+// Create new reading (ESP32 sends data here)
 app.post('/api/readings', async (req, res) => {
     const { 
         bridge_id, 
@@ -354,6 +399,7 @@ app.post('/api/readings', async (req, res) => {
 
 // ========== ALERTS ENDPOINTS ==========
 
+// Get all alerts
 app.get('/api/alerts', async (req, res) => {
     const { resolved } = req.query;
     
@@ -381,6 +427,7 @@ app.get('/api/alerts', async (req, res) => {
     }
 });
 
+// Resolve alert
 app.put('/api/alerts/:id/resolve', async (req, res) => {
     const { id } = req.params;
     
@@ -404,6 +451,7 @@ app.put('/api/alerts/:id/resolve', async (req, res) => {
 
 // ========== STATISTICS ENDPOINTS ==========
 
+// Get dashboard statistics
 app.get('/api/stats', async (req, res) => {
     try {
         const totalBridges = await pool.query('SELECT COUNT(*) FROM bridges');
@@ -425,6 +473,7 @@ app.get('/api/stats', async (req, res) => {
 
 // ========== FORGOT PASSWORD ==========
 
+// Forgot password - generate reset token with 6-digit code
 app.post('/api/forgot-password', async (req, res) => {
     const { username } = req.body;
     
@@ -435,15 +484,26 @@ app.post('/api/forgot-password', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
         
+        // Generate a 6-digit code for easier user entry
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Create JWT token with the code
         const resetToken = jwt.sign(
-            { userId: result.rows[0].id, purpose: 'reset' },
+            { 
+                userId: result.rows[0].id, 
+                purpose: 'reset',
+                code: resetCode 
+            },
             JWT_SECRET,
             { expiresIn: '1h' }
         );
         
+        // In production, send this via email/SMS
+        // For demo, we return it to the user
         res.json({ 
-            message: 'Password reset link sent to your email',
-            resetToken: resetToken
+            message: 'Password reset token generated successfully!',
+            resetToken: resetToken,
+            resetCode: resetCode
         });
     } catch (error) {
         console.error('Forgot password error:', error);
@@ -451,33 +511,171 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 });
 
+// Reset password
 app.post('/api/reset-password', async (req, res) => {
     const { token, newPassword } = req.body;
     
+    if (!token || !newPassword) {
+        return res.status(400).json({ error: 'Token and new password are required' });
+    }
+    
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
+        console.log('✅ Reset token decoded:', decoded);
         
         if (decoded.purpose !== 'reset') {
-            return res.status(400).json({ error: 'Invalid token' });
+            return res.status(400).json({ error: 'Invalid token purpose' });
         }
         
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         
-        await pool.query(
-            'UPDATE users SET password_hash = $1 WHERE id = $2',
+        const result = await pool.query(
+            'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, username',
             [hashedPassword, decoded.userId]
         );
         
-        res.json({ message: 'Password reset successfully' });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json({ 
+            message: 'Password reset successfully! You can now login with your new password.',
+            user: result.rows[0]
+        });
     } catch (error) {
         console.error('Reset password error:', error);
-        res.status(400).json({ error: 'Invalid or expired token' });
+        
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(400).json({ error: 'Invalid reset token. Please request a new one.' });
+        }
+        if (error.name === 'TokenExpiredError') {
+            return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+        }
+        
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========== CLEANUP OLD READINGS ==========
+
+// Delete readings older than 30 days (admin only)
+app.delete('/api/cleanup-readings', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Invalid token format' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+        }
+        
+        const result = await pool.query(
+            'DELETE FROM readings WHERE timestamp < NOW() - INTERVAL \'30 days\' RETURNING *'
+        );
+        
+        res.json({
+            message: 'Cleanup completed',
+            deleted_count: result.rowCount
+        });
+    } catch (error) {
+        console.error('Cleanup error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========== DELETE NORMAL READINGS ==========
+
+// Delete all normal readings (admin only)
+app.delete('/api/delete-normal-readings', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Invalid token format' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+        }
+        
+        const result = await pool.query(
+            'DELETE FROM readings WHERE alert_level = \'normal\' RETURNING *'
+        );
+        
+        res.json({
+            message: 'Normal readings deleted',
+            deleted_count: result.rowCount
+        });
+    } catch (error) {
+        console.error('Delete normal readings error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========== DATABASE SIZE ENDPOINT ==========
+
+// Get database size (admin only)
+app.get('/api/db-size', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Invalid token format' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        if (decoded.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+        }
+        
+        const result = await pool.query(`
+            SELECT 
+                pg_database_size(current_database()) / 1024 / 1024 AS total_mb,
+                (SELECT COUNT(*) FROM readings) AS total_readings,
+                (SELECT COUNT(*) FROM readings WHERE alert_level = 'normal') AS normal_readings,
+                (SELECT COUNT(*) FROM readings WHERE alert_level = 'warning') AS warning_readings,
+                (SELECT COUNT(*) FROM readings WHERE alert_level = 'danger') AS danger_readings
+        `);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('DB size error:', error);
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
 // ========== START SERVER ==========
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 API available at http://localhost:${PORT}/api`);
     console.log(`🔑 JWT_SECRET: ${JWT_SECRET}`);
