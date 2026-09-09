@@ -11,8 +11,11 @@ function Login({ onLogin }) {
     const [resetUsername, setResetUsername] = useState('');
     const [resetMessage, setResetMessage] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
+    const [showResetPassword, setShowResetPassword] = useState(false);
+    const [resetToken, setResetToken] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
 
-    // ✅ Use environment variable for API URL
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const handleSubmit = async (e) => {
@@ -44,14 +47,59 @@ function Login({ onLogin }) {
             const response = await axios.post(`${API_URL}/api/forgot-password`, {
                 username: resetUsername
             });
-            setResetMessage('Password reset link sent! Check your email.');
+            
+            // Show the reset token to the user (since no email)
+            setResetMessage(`✅ Password reset link generated! Your reset token: ${response.data.resetToken}`);
+            
+            // Auto-fill the token field and switch to reset mode after 2 seconds
             setTimeout(() => {
+                setResetToken(response.data.resetToken);
+                setShowResetPassword(true);
                 setShowForgot(false);
                 setResetMessage('');
-                setResetUsername('');
-            }, 3000);
+            }, 2000);
+            
         } catch (err) {
             setResetMessage(err.response?.data?.error || 'User not found');
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        setResetMessage('');
+
+        if (newPassword !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setError('Password must be at least 6 characters');
+            return;
+        }
+
+        setResetLoading(true);
+
+        try {
+            const response = await axios.post(`${API_URL}/api/reset-password`, {
+                token: resetToken,
+                newPassword: newPassword
+            });
+
+            setResetMessage('✅ Password reset successfully! You can now login.');
+            setTimeout(() => {
+                setShowResetPassword(false);
+                setShowForgot(false);
+                setResetMessage('');
+                setResetToken('');
+                setNewPassword('');
+                setConfirmPassword('');
+            }, 3000);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to reset password');
         } finally {
             setResetLoading(false);
         }
@@ -61,11 +109,20 @@ function Login({ onLogin }) {
         <div className="login-container">
             <div className="login-box">
                 <h1>🌊 Flood Warning System</h1>
-                <h2>{showForgot ? 'Reset Password' : 'Login'}</h2>
+                <h2>
+                    {showResetPassword ? 'Reset Password' : 
+                     showForgot ? 'Forgot Password' : 'Login'}
+                </h2>
                 
                 {error && <div className="error-message">{error}</div>}
+                {resetMessage && (
+                    <div className={resetMessage.includes('✅') ? 'success-message' : 'error-message'}>
+                        {resetMessage}
+                    </div>
+                )}
                 
-                {!showForgot ? (
+                {/* Login Form */}
+                {!showForgot && !showResetPassword && (
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
                             <label>Username</label>
@@ -105,10 +162,13 @@ function Login({ onLogin }) {
                             </Link>
                         </div>
                     </form>
-                ) : (
+                )}
+
+                {/* Forgot Password Form */}
+                {showForgot && !showResetPassword && (
                     <form onSubmit={handleForgotPassword}>
                         <p style={{ color: '#666', marginBottom: '20px', fontSize: '14px' }}>
-                            Enter your username and we'll send you a password reset link.
+                            Enter your username to receive a password reset token.
                         </p>
                         <div className="form-group">
                             <label>Username</label>
@@ -120,13 +180,8 @@ function Login({ onLogin }) {
                                 placeholder="Enter your username"
                             />
                         </div>
-                        {resetMessage && (
-                            <div className={resetMessage.includes('sent') ? 'success-message' : 'error-message'}>
-                                {resetMessage}
-                            </div>
-                        )}
                         <button type="submit" disabled={resetLoading}>
-                            {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                            {resetLoading ? 'Generating...' : 'Get Reset Token'}
                         </button>
                         <button 
                             type="button" 
@@ -141,11 +196,66 @@ function Login({ onLogin }) {
                         </button>
                     </form>
                 )}
+
+                {/* Reset Password Form */}
+                {showResetPassword && (
+                    <form onSubmit={handleResetPassword}>
+                        <p style={{ color: '#666', marginBottom: '20px', fontSize: '14px' }}>
+                            Enter the reset token and your new password.
+                        </p>
+                        <div className="form-group">
+                            <label>Reset Token</label>
+                            <input
+                                type="text"
+                                value={resetToken}
+                                onChange={(e) => setResetToken(e.target.value)}
+                                required
+                                placeholder="Paste your reset token here"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>New Password</label>
+                            <input
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                required
+                                placeholder="Min 6 characters"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Confirm Password</label>
+                            <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                placeholder="Confirm new password"
+                            />
+                        </div>
+                        <button type="submit" disabled={resetLoading}>
+                            {resetLoading ? 'Resetting...' : 'Reset Password'}
+                        </button>
+                        <button 
+                            type="button" 
+                            className="link-btn back-btn"
+                            onClick={() => {
+                                setShowResetPassword(false);
+                                setShowForgot(false);
+                                setResetMessage('');
+                                setResetToken('');
+                                setNewPassword('');
+                                setConfirmPassword('');
+                            }}
+                        >
+                            ← Back to Login
+                        </button>
+                    </form>
+                )}
                 
                 <div className="login-footer">
-                    <p>Admin login: admin / admin123</p>
-                    <p style={{ marginTop: '4px', fontSize: '12px', color: '#999' }}>
-                        New user? <Link to="/register" style={{ color: '#667eea' }}>Sign up here</Link>
+                    <p style={{ color: '#999', fontSize: '13px' }}>
+                        Need help? Contact your system administrator.
                     </p>
                 </div>
             </div>
