@@ -343,7 +343,7 @@ app.get('/api/readings', async (req, res) => {
     }
 });
 
-// Create new reading (ESP32 sends data here)
+// ========== CREATE NEW READING (OBJECT DETECTION LOGIC) ==========
 app.post('/api/readings', async (req, res) => {
     const { 
         bridge_id, 
@@ -363,9 +363,14 @@ app.post('/api/readings', async (req, res) => {
         const b = bridge.rows[0];
         let alert_level = 'normal';
         
-        if (water_level_cm >= b.danger_threshold_cm || vibration_g >= b.vibration_threshold_g * 2) {
+        // ✅ INVERTED LOGIC FOR OBJECT DETECTION:
+        // Lower distance = Closer object = Higher danger
+        // Example: distance 2cm (object very close) = DANGER
+        //          distance 100cm (nothing nearby) = NORMAL
+        
+        if (water_level_cm <= b.danger_threshold_cm || vibration_g >= b.vibration_threshold_g * 2) {
             alert_level = 'danger';
-        } else if (water_level_cm >= b.warning_threshold_cm || vibration_g >= b.vibration_threshold_g) {
+        } else if (water_level_cm <= b.warning_threshold_cm || vibration_g >= b.vibration_threshold_g) {
             alert_level = 'warning';
         }
         
@@ -378,15 +383,15 @@ app.post('/api/readings', async (req, res) => {
         if (alert_level !== 'normal') {
             let message = '';
             if (alert_level === 'danger') {
-                message = `🚨 DANGER: Bridge ${b.code} - Water level: ${water_level_cm}cm (Threshold: ${b.danger_threshold_cm}cm)`;
+                message = `🚨 DANGER: Bridge ${b.code} - Object detected at ${water_level_cm}cm (Danger threshold: ${b.danger_threshold_cm}cm)`;
             } else {
-                message = `⚠️ WARNING: Bridge ${b.code} - Water level: ${water_level_cm}cm (Threshold: ${b.warning_threshold_cm}cm)`;
+                message = `⚠️ WARNING: Bridge ${b.code} - Object approaching at ${water_level_cm}cm (Warning threshold: ${b.warning_threshold_cm}cm)`;
             }
             
             await pool.query(
                 `INSERT INTO alerts (bridge_id, alert_type, message, severity) 
                  VALUES ($1, $2, $3, $4)`,
-                [bridge_id, 'threshold_alert', message, alert_level]
+                [bridge_id, 'object_detection', message, alert_level]
             );
         }
         
@@ -484,10 +489,8 @@ app.post('/api/forgot-password', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
         
-        // Generate a 6-digit code for easier user entry
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
         
-        // Create JWT token with the code
         const resetToken = jwt.sign(
             { 
                 userId: result.rows[0].id, 
@@ -498,8 +501,6 @@ app.post('/api/forgot-password', async (req, res) => {
             { expiresIn: '1h' }
         );
         
-        // In production, send this via email/SMS
-        // For demo, we return it to the user
         res.json({ 
             message: 'Password reset token generated successfully!',
             resetToken: resetToken,
@@ -525,7 +526,6 @@ app.post('/api/reset-password', async (req, res) => {
     
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        console.log('✅ Reset token decoded:', decoded);
         
         if (decoded.purpose !== 'reset') {
             return res.status(400).json({ error: 'Invalid token purpose' });
@@ -679,4 +679,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 API available at http://localhost:${PORT}/api`);
     console.log(`🔑 JWT_SECRET: ${JWT_SECRET}`);
+    console.log(`📌 Alert Logic: OBJECT DETECTION (lower distance = higher danger)`);
 });
