@@ -9,6 +9,10 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Weather cache
+const weatherCache = {};
+const WEATHER_CACHE_TIME = 60 * 60 * 1000; // 1 hour
 app.use(cors());
 
 const pool = new Pool({
