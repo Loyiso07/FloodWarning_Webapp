@@ -76,6 +76,15 @@ app.get("/api/bridges/:id/weather", async (req, res) => {
   try {
     const bridgeId = req.params.id;
 
+    // Check if we already have recent weather for this bridge
+    const cached = weatherCache[bridgeId];
+
+    if (cached && Date.now() - cached.timestamp < WEATHER_CACHE_TIME) {
+      console.log(`Using cached weather for bridge ${bridgeId}`);
+      return res.json(cached.data);
+    }
+
+    // Get the bridge coordinates from the database
     const bridgeResult = await pool.query(
       "SELECT latitude, longitude FROM bridges WHERE id = $1",
       [bridgeId],
@@ -95,6 +104,7 @@ app.get("/api/bridges/:id/weather", async (req, res) => {
       });
     }
 
+    // Build the Open-Meteo API URL
     const weatherUrl =
       `https://api.open-meteo.com/v1/forecast?latitude=${latitude}` +
       `&longitude=${longitude}` +
@@ -103,13 +113,27 @@ app.get("/api/bridges/:id/weather", async (req, res) => {
       `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code` +
       `&timezone=auto&forecast_days=4`;
 
+    // Call Open-Meteo only when there is no valid cache
     const weatherResponse = await fetch(weatherUrl);
 
+    if (!weatherResponse.ok) {
+      throw new Error(`Weather API returned ${weatherResponse.status}`);
+    }
+
     const weatherData = await weatherResponse.json();
+
+    // Save the weather response in the cache
+    weatherCache[bridgeId] = {
+      timestamp: Date.now(),
+      data: weatherData,
+    };
+
+    console.log(`Fetched fresh weather for bridge ${bridgeId}`);
 
     res.json(weatherData);
   } catch (err) {
     console.error(err);
+
     res.status(500).json({
       error: "Something went wrong fetching weather",
     });
