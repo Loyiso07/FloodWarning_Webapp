@@ -633,11 +633,11 @@ async function loadDashboardAlerts() {
 loadBridges();
 loadDashboardAlerts();
 
-// Refresh readings and alerts every 10 seconds
+// Refresh readings and alerts every 5 minutes
 setInterval(() => {
   if (currentBridgeId) {
     loadReadings(currentBridgeId);
   }
 
   loadDashboardAlerts();
-}, 10000);
+}, 300000);
