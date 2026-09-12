@@ -532,21 +532,22 @@ function showAlertPopup(alert) {
   }, 8000);
 }
 
-async function loadDashboardAlerts() {
+async function loadDashboardAlerts(isInitialLoad = false) {
   const response = await fetch(`${API_BASE}/api/alerts`);
-
   const alerts = await response.json();
 
-  const newDangerAlerts = alerts.filter(
-    (a) =>
-      a.id > lastSeenAlertId &&
-      a.severity === "danger" &&
-      a.bridge_id !== currentBridgeId,
-  );
+  // Skip pop-ups on the very first load — otherwise every alert
+  // that's ever existed would look "new" and pop up at once
+  if (!isInitialLoad) {
+    const newDangerAlerts = alerts.filter(
+      (a) =>
+        a.id > lastSeenAlertId &&
+        a.severity === "danger" &&
+        a.bridge_id !== currentBridgeId,
+    );
 
-  newDangerAlerts.forEach((alert) => {
-    showAlertPopup(alert);
-  });
+    newDangerAlerts.forEach((alert) => showAlertPopup(alert));
+  }
 
   if (alerts.length > 0) {
     lastSeenAlertId = Math.max(...alerts.map((a) => a.id));
@@ -555,68 +556,47 @@ async function loadDashboardAlerts() {
   const bridgeAlerts = alerts.filter((a) => a.bridge_id === currentBridgeId);
 
   const banner = document.getElementById("critical-banner");
-
   const bannerTitle = document.getElementById("critical-banner-title");
-
   const bannerSub = document.getElementById("critical-banner-sub");
 
   const dangerAlerts = bridgeAlerts.filter((a) => a.severity === "danger");
 
   if (dangerAlerts.length > 0) {
     banner.classList.add("danger");
-
-    bannerTitle.textContent = `${dangerAlerts.length} Critical Alert${
-      dangerAlerts.length > 1 ? "s" : ""
-    }`;
-
+    bannerTitle.textContent = `${dangerAlerts.length} Critical Alert${dangerAlerts.length > 1 ? "s" : ""}`;
     bannerSub.textContent = dangerAlerts[0].message;
   } else {
     banner.classList.remove("danger");
-
     bannerTitle.textContent = "No Critical Alerts";
-
     bannerSub.textContent = "This bridge is currently safe.";
   }
 
   const listBox = document.getElementById("dashboard-alerts-list");
-
   listBox.innerHTML = "";
 
   bridgeAlerts.slice(0, 3).forEach((alert) => {
     const row = document.createElement("div");
-
     row.className = "alert-row";
-
     const iconColor = alert.severity === "danger" ? "#f87171" : "#fbbf24";
-
     row.innerHTML = `
-      <span
-        class="alert-icon"
-        style="color: ${iconColor};"
-      >
-        &#9888;
-      </span>
-
+      <span class="alert-icon" style="color: ${iconColor};">&#9888;</span>
       <div class="alert-text">
-
-        <div class="alert-message">
-          ${alert.message}
-        </div>
-
-        <div class="alert-sub">
-          ${alert.bridge_name}
-        </div>
-
+        <div class="alert-message">${alert.message}</div>
+        <div class="alert-sub">${alert.bridge_name}</div>
       </div>
     `;
-
     listBox.appendChild(row);
   });
 }
 
-// Start dashboard
-loadBridges();
-loadDashboardAlerts();
+// Start dashboard — wait for the bridge to actually be selected
+// (currentBridgeId set) before checking alerts for the first time
+async function initDashboard() {
+  await loadBridges();
+  await loadDashboardAlerts(true); // establish baseline, no pop-ups yet
+}
+
+initDashboard();
 
 // Refresh readings and alerts every 5 minutes
 setInterval(() => {
