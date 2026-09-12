@@ -1,5 +1,4 @@
 // Redirect to login if not authenticated, or if this page was reloaded
-
 const loggedInUser = JSON.parse(localStorage.getItem("bridgeguard_user"));
 
 const navEntries = performance.getEntriesByType("navigation");
@@ -53,7 +52,6 @@ async function loadBridges() {
     loadReadings(initialBridge.id);
   }
 
-  // Switch bridges when the dropdown selection changes
   select.addEventListener("change", () => {
     const selected = bridges.find((b) => b.id == select.value);
 
@@ -222,7 +220,8 @@ function resetDashboardFields() {
   });
 }
 
-// Updates the dashboard status cards
+// Updates the dashboard status cards.
+// water_level_cm is RAW sensor distance — SMALLER means MORE dangerous.
 function updateStatusCards(reading) {
   if (!currentBridge) return;
 
@@ -246,7 +245,7 @@ function updateStatusCards(reading) {
   document.getElementById("vibration-status").textContent =
     vibration >= vibrationThreshold ? "HIGH" : "NORMAL";
 
-  // Bridge status
+  // Bridge status — smaller distance = more dangerous, so <=
   if (waterLevel < 0) {
     document.getElementById("bridge-status").textContent = "NO DATA";
   } else if (waterLevel <= dangerThreshold) {
@@ -282,7 +281,6 @@ function updateStatusCards(reading) {
 function updateCharts(readings) {
   if (!currentBridge) return;
 
-  // Readings come newest-first
   const sorted = [...readings].reverse();
 
   const labels = sorted.map((r) =>
@@ -296,7 +294,6 @@ function updateCharts(readings) {
 
   const vibrationData = sorted.map((r) => parseFloat(r.vibration_g));
 
-  // Threshold lines
   const dangerLine = labels.map(() =>
     parseFloat(currentBridge.danger_threshold_cm),
   );
@@ -313,7 +310,6 @@ function updateCharts(readings) {
 
   const vibrationCtx = document.getElementById("vibration-chart");
 
-  // Destroy old charts
   if (waterChart) {
     waterChart.destroy();
   }
@@ -322,7 +318,6 @@ function updateCharts(readings) {
     vibrationChart.destroy();
   }
 
-  // Water level chart
   waterChart = new Chart(waterCtx, {
     type: "line",
 
@@ -372,7 +367,6 @@ function updateCharts(readings) {
     },
   });
 
-  // Vibration chart
   vibrationChart = new Chart(vibrationCtx, {
     type: "line",
 
@@ -414,7 +408,6 @@ function updateCharts(readings) {
   });
 }
 
-// Converts weather codes to text
 function weatherCodeToText(code) {
   if (code === 0) return "Clear";
   if (code <= 3) return "Cloudy";
@@ -426,7 +419,6 @@ function weatherCodeToText(code) {
   return "Storm";
 }
 
-// Converts weather codes to icons
 function weatherCodeToIcon(code) {
   if (code === 0) return "☀️";
   if (code <= 3) return "☁️";
@@ -438,7 +430,6 @@ function weatherCodeToIcon(code) {
   return "⛈️";
 }
 
-// Loads weather for the selected bridge
 async function loadWeather(bridgeId) {
   const response = await fetch(`${API_BASE}/api/bridges/${bridgeId}/weather`);
 
@@ -513,7 +504,6 @@ async function loadWeather(bridgeId) {
   widget.innerHTML = html;
 }
 
-// Shows a pop-up for a critical alert from another bridge
 function showAlertPopup(alert) {
   const container = document.getElementById("alert-popup");
 
@@ -537,19 +527,16 @@ function showAlertPopup(alert) {
 
   container.appendChild(item);
 
-  // Remove popup after 8 seconds
   setTimeout(() => {
     item.remove();
   }, 8000);
 }
 
-// Loads alerts for the dashboard
 async function loadDashboardAlerts() {
   const response = await fetch(`${API_BASE}/api/alerts`);
 
   const alerts = await response.json();
 
-  // Find new danger alerts from other bridges
   const newDangerAlerts = alerts.filter(
     (a) =>
       a.id > lastSeenAlertId &&
@@ -565,7 +552,6 @@ async function loadDashboardAlerts() {
     lastSeenAlertId = Math.max(...alerts.map((a) => a.id));
   }
 
-  // Only use alerts for the selected bridge
   const bridgeAlerts = alerts.filter((a) => a.bridge_id === currentBridgeId);
 
   const banner = document.getElementById("critical-banner");
@@ -592,7 +578,6 @@ async function loadDashboardAlerts() {
     bannerSub.textContent = "This bridge is currently safe.";
   }
 
-  // Recent alerts
   const listBox = document.getElementById("dashboard-alerts-list");
 
   listBox.innerHTML = "";
