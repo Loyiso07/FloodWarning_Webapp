@@ -25,6 +25,9 @@ app.get("/", (req, res) => {
 });
 
 // GET /api/bridges
+// Returns the list of active bridges (id, code, name, location, thresholds).
+// Used to power the search/dropdown and bridge details on the dashboard.
+// Inactive (soft-deleted) bridges are excluded.
 app.get("/api/bridges", async (req, res) => {
   try {
     const result = await pool.query(
@@ -40,10 +43,14 @@ app.get("/api/bridges", async (req, res) => {
 });
 
 // GET /api/bridges/:id/readings
+// Returns all sensor readings for one specific bridge, newest first.
+// Used to power the history graphs and current status cards on the dashboard.
 app.get("/api/bridges/:id/readings", async (req, res) => {
   try {
     const bridgeId = req.params.id;
 
+    // Using $1 instead of inserting bridgeId directly into the string
+    // protects against SQL injection (malicious input in the URL)
     const result = await pool.query(
       "SELECT * FROM readings WHERE bridge_id = $1 ORDER BY timestamp DESC",
       [bridgeId],
@@ -58,10 +65,71 @@ app.get("/api/bridges/:id/readings", async (req, res) => {
   }
 });
 
+// Converts OpenWeatherMap's condition codes into the same style of
+// numeric code your frontend's weatherCodeToText/Icon functions expect
+// (matching Open-Meteo's ranges: 0=clear, <=3=cloudy, <=48=fog,
+// <=67=rain, <=77=snow, <=82=showers, else=storm)
+function mapOwmCodeToSyntheticCode(owmId) {
+  if (owmId === 800) return 0; // clear
+  if (owmId >= 801 && owmId <= 804) return 2; // clouds
+  if (owmId >= 701 && owmId <= 781) return 45; // fog/mist/haze
+  if (owmId >= 500 && owmId <= 531) return 61; // rain
+  if (owmId >= 600 && owmId <= 622) return 71; // snow
+  if (owmId >= 300 && owmId <= 321) return 80; // drizzle/showers
+  if (owmId >= 200 && owmId <= 232) return 95; // thunderstorm
+  return 2; // fallback: cloudy
+}
+
+// Groups OpenWeatherMap's 3-hour-step forecast list into daily
+// summaries (max/min temp, a representative weather code, max rain
+// chance) for the next few days, matching Open-Meteo's daily shape
+function buildDailyFromForecastList(list) {
+  const days = {};
+
+  list.forEach((entry) => {
+    const date = entry.dt_txt.split(" ")[0];
+
+    if (!days[date]) {
+      days[date] = {
+        temps: [],
+        codes: [],
+        pops: [],
+      };
+    }
+
+    days[date].temps.push(entry.main.temp);
+    days[date].codes.push(entry.weather[0].id);
+    days[date].pops.push(entry.pop || 0);
+  });
+
+  const dates = Object.keys(days).slice(0, 4);
+
+  return {
+    time: dates,
+    temperature_2m_max: dates.map((d) => Math.max(...days[d].temps)),
+    temperature_2m_min: dates.map((d) => Math.min(...days[d].temps)),
+    precipitation_probability_max: dates.map((d) =>
+      Math.round(Math.max(...days[d].pops) * 100),
+    ),
+    weather_code: dates.map((d) =>
+      mapOwmCodeToSyntheticCode(
+        days[d].codes[Math.floor(days[d].codes.length / 2)],
+      ),
+    ),
+  };
+}
+
 // GET /api/bridges/:id/weather
-// Cached in the database (not server memory) for 1 hour per bridge, since
-// Render's free tier restarts periodically and would otherwise wipe an
-// in-memory cache constantly.
+// Fetches current + forecast weather for a bridge's coordinates using
+// OpenWeatherMap (personal free API key, tied to your account rather
+// than a shared IP — avoids the rate-limiting issue hit with Open-Meteo
+// on Render's free tier, which shares outbound IPs across many apps).
+// Reshapes the response to match the structure the frontend already
+// expects (same field names as the old Open-Meteo response), so
+// script.js/weather.js need no changes at all.
+// Cached in the DATABASE (not server memory) for 1 hour per bridge,
+// since Render's free tier restarts the server periodically and would
+// otherwise wipe an in-memory cache constantly.
 app.get("/api/bridges/:id/weather", async (req, res) => {
   try {
     const bridgeId = req.params.id;
@@ -80,6 +148,7 @@ app.get("/api/bridges/:id/weather", async (req, res) => {
       }
     }
 
+    // Get the bridge coordinates from the database
     const bridgeResult = await pool.query(
       "SELECT latitude, longitude FROM bridges WHERE id = $1",
       [bridgeId],
@@ -99,22 +168,51 @@ app.get("/api/bridges/:id/weather", async (req, res) => {
       });
     }
 
-    const weatherUrl =
-      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}` +
-      `&longitude=${longitude}` +
-      `&current=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m` +
-      `&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code` +
-      `&timezone=auto&forecast_days=4`;
+    const apiKey = process.env.OPENWEATHER_API_KEY;
 
-    const weatherResponse = await fetch(weatherUrl);
+    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
 
-    if (!weatherResponse.ok) {
-      throw new Error(`Weather API returned ${weatherResponse.status}`);
+    // Call both endpoints only when there is no valid cache
+    const [currentResponse, forecastResponse] = await Promise.all([
+      fetch(currentUrl),
+      fetch(forecastUrl),
+    ]);
+
+    if (!currentResponse.ok || !forecastResponse.ok) {
+      throw new Error(
+        `Weather API returned ${currentResponse.status} / ${forecastResponse.status}`,
+      );
     }
 
-    const weatherData = await weatherResponse.json();
+    const currentData = await currentResponse.json();
+    const forecastData = await forecastResponse.json();
 
+    // Reshape OpenWeatherMap's response into the same shape the
+    // frontend already expects (current/hourly/daily with the same
+    // field names as before)
+    const weatherData = {
+      current: {
+        temperature_2m: currentData.main.temp,
+        weather_code: mapOwmCodeToSyntheticCode(currentData.weather[0].id),
+        wind_speed_10m: currentData.wind.speed * 3.6, // m/s -> km/h
+        wind_direction_10m: currentData.wind.deg,
+      },
+      hourly: {
+        time: forecastData.list.map((entry) => entry.dt_txt),
+        temperature_2m: forecastData.list.map((entry) => entry.main.temp),
+        weather_code: forecastData.list.map((entry) =>
+          mapOwmCodeToSyntheticCode(entry.weather[0].id),
+        ),
+        wind_speed_10m: forecastData.list.map(
+          (entry) => entry.wind.speed * 3.6,
+        ),
+        wind_direction_10m: forecastData.list.map((entry) => entry.wind.deg),
+      },
+      daily: buildDailyFromForecastList(forecastData.list),
+    };
+
+    // Save the weather response in the cache
     await pool.query(
       `INSERT INTO weather_cache (bridge_id, data, fetched_at)
        VALUES ($1, $2, NOW())
@@ -135,6 +233,10 @@ app.get("/api/bridges/:id/weather", async (req, res) => {
 });
 
 // POST /api/bridges
+// Adds a new bridge to the database. Admin-only feature on the frontend.
+// Expects a JSON body with: code, name, location,
+// warning_threshold_cm, danger_threshold_cm, vibration_threshold_g,
+// latitude, longitude
 app.post("/api/bridges", async (req, res) => {
   try {
     const {
@@ -174,6 +276,9 @@ app.post("/api/bridges", async (req, res) => {
   }
 });
 
+// GET /api/bridges/all
+// Returns EVERY bridge (active and inactive), for the Bridges list page
+// that shows both, labeled accordingly.
 app.get("/api/bridges/all", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM bridges ORDER BY name");
@@ -188,6 +293,8 @@ app.get("/api/bridges/all", async (req, res) => {
 });
 
 // DELETE /api/bridges/:id
+// Soft-deletes a bridge by marking it inactive instead of removing it,
+// so its reading history stays intact. Admin-only feature on the frontend.
 app.delete("/api/bridges/:id", async (req, res) => {
   try {
     const bridgeId = req.params.id;
@@ -216,8 +323,14 @@ app.delete("/api/bridges/:id", async (req, res) => {
 });
 
 // POST /api/readings
+// Receives a new sensor reading from the ESP32 for a specific bridge.
+// Expects a JSON body with: bridge_id, water_level_cm, vibration_g,
+// barrier1_status, barrier2_status, buzzer_status
+// timestamp is filled in automatically by PostgreSQL (DEFAULT NOW()).
 // water_level_cm is the RAW ultrasonic distance from sensor to water —
-// smaller values mean MORE danger (water closer to the sensor).
+// SMALLER values mean MORE danger (water closer to the sensor).
+// After saving, checks the reading against that bridge's own thresholds
+// and automatically creates an alert if one is crossed.
 app.post("/api/readings", async (req, res) => {
   try {
     const {
@@ -244,6 +357,7 @@ app.post("/api/readings", async (req, res) => {
       ],
     );
 
+    // Look up this bridge's own thresholds (each bridge can have different ones)
     const bridgeResult = await pool.query(
       "SELECT warning_threshold_cm, danger_threshold_cm, vibration_threshold_g FROM bridges WHERE id = $1",
       [bridge_id],
@@ -252,6 +366,8 @@ app.post("/api/readings", async (req, res) => {
     const thresholds = bridgeResult.rows[0];
 
     if (thresholds) {
+      // Check danger first, then warning, so only one water-level alert
+      // is created per reading. Smaller distance = more dangerous, so <=
       if (water_level_cm <= thresholds.danger_threshold_cm) {
         await pool.query(
           `INSERT INTO alerts (bridge_id, alert_type, severity, value, message)
@@ -297,6 +413,9 @@ app.post("/api/readings", async (req, res) => {
 });
 
 // GET /api/alerts
+// Returns the 50 most recent alerts across ALL bridges (not just one),
+// joined with each bridge's name/code so the frontend doesn't need
+// to look that up separately.
 app.get("/api/alerts", async (req, res) => {
   try {
     const result = await pool.query(
@@ -317,6 +436,9 @@ app.get("/api/alerts", async (req, res) => {
 });
 
 // POST /api/users
+// Creates a new staff or admin account. Admin-only feature on the frontend.
+// Expects a JSON body with: name, surname, username, password, phone_number, role
+// The plain password is hashed with bcrypt before being stored — never saved as-is.
 app.post("/api/users", async (req, res) => {
   try {
     const { name, surname, username, password, phone_number, role } = req.body;
@@ -340,7 +462,9 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
-// List all staff
+// GET /api/users
+// Lists all active staff/admin accounts (id, name, username, role — no
+// password_hash, that's never sent out even to the admin).
 app.get("/api/users", async (req, res) => {
   try {
     const result = await pool.query(
@@ -357,6 +481,9 @@ app.get("/api/users", async (req, res) => {
 });
 
 // DELETE /api/users/:id
+// Soft-deletes a staff/admin account by marking it inactive instead of
+// removing it. Inactive accounts are blocked from logging in (see /api/login).
+// Admin-only feature on the frontend.
 app.delete("/api/users/:id", async (req, res) => {
   try {
     const userId = req.params.id;
@@ -385,6 +512,8 @@ app.delete("/api/users/:id", async (req, res) => {
 });
 
 // POST /api/login
+// Checks a username/password against stored users.
+// Expects a JSON body with: username, password
 app.post("/api/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -393,6 +522,8 @@ app.post("/api/login", async (req, res) => {
       username,
     ]);
 
+    // Keep this message vague on purpose — don't reveal whether the
+    // username exists, to prevent attackers from discovering real accounts
     if (result.rows.length === 0) {
       return res.status(401).json({
         error: "Invalid username or password",
@@ -401,12 +532,17 @@ app.post("/api/login", async (req, res) => {
 
     const user = result.rows[0];
 
+    // Block soft-deleted (inactive) accounts from logging in.
+    // This is fine to state plainly, unlike the username/password check above.
     if (!user.is_active) {
       return res.status(403).json({
         error: "This account is inactive",
       });
     }
 
+    // bcrypt.compare hashes the typed password the same way and checks
+    // it against the stored hash — the plain password is never stored
+    // or reversed at any point
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordMatches) {
@@ -415,6 +551,7 @@ app.post("/api/login", async (req, res) => {
       });
     }
 
+    // Deliberately excludes password_hash from the response
     res.json({
       id: user.id,
       name: user.name,
