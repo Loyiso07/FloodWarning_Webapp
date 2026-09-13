@@ -58,6 +58,7 @@ async function loadBridges() {
     if (selected) {
       loadBridgeDetails(selected);
       loadReadings(selected.id);
+      loadDashboardAlerts();
     }
   });
 }
