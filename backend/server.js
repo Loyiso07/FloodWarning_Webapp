@@ -343,7 +343,7 @@ app.get('/api/readings', async (req, res) => {
     }
 });
 
-// ========== CREATE NEW READING (OBJECT DETECTION LOGIC) ==========
+// ========== CREATE NEW READING (WITH SENSOR FAULTY DETECTION) ==========
 app.post('/api/readings', async (req, res) => {
     const { 
         bridge_id, 
@@ -351,7 +351,8 @@ app.post('/api/readings', async (req, res) => {
         vibration_g, 
         barrier1_status, 
         barrier2_status, 
-        buzzer_status 
+        buzzer_status,
+        sensor_faulty  // ✅ NEW: Receive faulty sensor status
     } = req.body;
     
     try {
@@ -363,14 +364,14 @@ app.post('/api/readings', async (req, res) => {
         const b = bridge.rows[0];
         let alert_level = 'normal';
         
+        // ✅ If vibration sensor is faulty, ignore vibration for alert logic
+        const effectiveVibration = sensor_faulty ? 0 : vibration_g;
+        
         // ✅ INVERTED LOGIC FOR OBJECT DETECTION:
         // Lower distance = Closer object = Higher danger
-        // Example: distance 2cm (object very close) = DANGER
-        //          distance 100cm (nothing nearby) = NORMAL
-        
-        if (water_level_cm <= b.danger_threshold_cm || vibration_g >= b.vibration_threshold_g * 2) {
+        if (water_level_cm <= b.danger_threshold_cm || effectiveVibration >= b.vibration_threshold_g * 2) {
             alert_level = 'danger';
-        } else if (water_level_cm <= b.warning_threshold_cm || vibration_g >= b.vibration_threshold_g) {
+        } else if (water_level_cm <= b.warning_threshold_cm || effectiveVibration >= b.vibration_threshold_g) {
             alert_level = 'warning';
         }
         
@@ -380,7 +381,8 @@ app.post('/api/readings', async (req, res) => {
             [bridge_id, water_level_cm, vibration_g, barrier1_status, barrier2_status, buzzer_status, alert_level]
         );
         
-        if (alert_level !== 'normal') {
+        // Create alert if needed (but skip if sensor faulty caused false alert)
+        if (alert_level !== 'normal' && !sensor_faulty) {
             let message = '';
             if (alert_level === 'danger') {
                 message = `🚨 DANGER: Bridge ${b.code} - Object detected at ${water_level_cm}cm (Danger threshold: ${b.danger_threshold_cm}cm)`;
@@ -395,7 +397,34 @@ app.post('/api/readings', async (req, res) => {
             );
         }
         
-        res.status(201).json(result.rows[0]);
+        // ✅ Create separate alert for sensor malfunction
+        if (sensor_faulty) {
+            // Check if there's already an unresolved sensor alert
+            const existingFaultAlert = await pool.query(
+                `SELECT * FROM alerts 
+                 WHERE bridge_id = $1 
+                 AND alert_type = 'sensor_fault' 
+                 AND is_resolved = false
+                 AND created_at > NOW() - INTERVAL '1 hour'`,
+                [bridge_id]
+            );
+            
+            if (existingFaultAlert.rows.length === 0) {
+                await pool.query(
+                    `INSERT INTO alerts (bridge_id, alert_type, message, severity) 
+                     VALUES ($1, $2, $3, $4)`,
+                    [bridge_id, 'sensor_fault', 
+                     `🔧 SENSOR FAULT: Bridge ${b.code} - Vibration sensor is not responding (reading 4095). Maintenance required.`, 
+                     'warning']
+                );
+                console.log('⚠️ Sensor fault alert created for bridge:', b.code);
+            }
+        }
+        
+        res.status(201).json({
+            ...result.rows[0],
+            sensor_faulty: sensor_faulty || false
+        });
     } catch (error) {
         console.error('Error creating reading:', error);
         res.status(500).json({ error: 'Server error' });
@@ -454,6 +483,35 @@ app.put('/api/alerts/:id/resolve', async (req, res) => {
     }
 });
 
+// ========== SENSOR STATUS ENDPOINT ==========
+
+// Get sensor health status (admin only)
+app.get('/api/sensor-status', async (req, res) => {
+    try {
+        // Get the latest reading for each bridge
+        const result = await pool.query(`
+            SELECT DISTINCT ON (r.bridge_id)
+                r.bridge_id,
+                b.name as bridge_name,
+                b.code as bridge_code,
+                r.vibration_g,
+                r.timestamp,
+                CASE 
+                    WHEN r.vibration_g >= 4.0 THEN 'FAULTY'
+                    ELSE 'OK'
+                END as sensor_status
+            FROM readings r
+            JOIN bridges b ON r.bridge_id = b.id
+            ORDER BY r.bridge_id, r.timestamp DESC
+        `);
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching sensor status:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // ========== STATISTICS ENDPOINTS ==========
 
 // Get dashboard statistics
@@ -463,12 +521,14 @@ app.get('/api/stats', async (req, res) => {
         const totalReadings = await pool.query('SELECT COUNT(*) FROM readings');
         const activeAlerts = await pool.query('SELECT COUNT(*) FROM alerts WHERE is_resolved = false');
         const dangerAlerts = await pool.query('SELECT COUNT(*) FROM alerts WHERE severity = $1 AND is_resolved = false', ['danger']);
+        const sensorFaults = await pool.query("SELECT COUNT(*) FROM alerts WHERE alert_type = 'sensor_fault' AND is_resolved = false");
         
         res.json({
             total_bridges: parseInt(totalBridges.rows[0].count),
             total_readings: parseInt(totalReadings.rows[0].count),
             active_alerts: parseInt(activeAlerts.rows[0].count),
-            danger_alerts: parseInt(dangerAlerts.rows[0].count)
+            danger_alerts: parseInt(dangerAlerts.rows[0].count),
+            sensor_faults: parseInt(sensorFaults.rows[0].count)  // ✅ NEW
         });
     } catch (error) {
         console.error('Error fetching stats:', error);
@@ -680,4 +740,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 API available at http://localhost:${PORT}/api`);
     console.log(`🔑 JWT_SECRET: ${JWT_SECRET}`);
     console.log(`📌 Alert Logic: OBJECT DETECTION (lower distance = higher danger)`);
+    console.log(`🔧 Sensor Fault Detection: ENABLED`);
 });
