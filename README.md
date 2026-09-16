@@ -22,7 +22,7 @@ This system monitors water levels and structural vibrations on bridges, providin
 | Component | Purpose | Pin Connection |
 |-----------|---------|----------------|
 | ESP32 | Main controller with WiFi | - |
-| HC-SR04 | Water level measurement | TRIG: D5, ECHO: D18 |
+| JSN-SR04T | Water level measurement | TRIG: D5, ECHO: D18 |
 | Piezoelectric Sensor | Vibration monitoring | D34 (ADC) |
 | 1602 LCD I2C | Local display | SDA: D21, SCL: D22 |
 | LEDs (Green/Yellow/Red) | Visual status | D25, D26, D27 |
