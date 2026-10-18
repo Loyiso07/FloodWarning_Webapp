@@ -371,7 +371,7 @@ app.post('/api/readings', async (req, res) => {
         // Lower distance = Closer object = Higher danger
         if (water_level_cm <= b.danger_threshold_cm || effectiveVibration >= b.vibration_threshold_g ) {
             alert_level = 'danger';
-        } else if (water_level_cm <= b.warning_threshold_cm || effectiveVibration >= b.vibration_threshold_g) {
+        } else if (water_level_cm <= b.warning_threshold_cm || effectiveVibration >= 0) {
             alert_level = 'warning';
         }
         
