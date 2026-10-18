@@ -1678,3 +1678,334 @@ body {
         font-size: 18px;
     }
 }
+/* ========== HISTORY PAGE ========== */
+.history-page {
+    padding: 16px 20px;
+    width: 100%;
+    min-height: 100vh;
+    background-image: url('/floodalert.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.history-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 0;
+}
+
+.history-page > * {
+    position: relative;
+    z-index: 1;
+}
+
+.history-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.history-page .page-header h1 {
+    font-size: 22px;
+    color: #ffffff;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.export-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-export-csv {
+    background: #48bb78;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-export-csv:hover {
+    background: #38a169;
+}
+
+.btn-export-report {
+    background: #4299e1;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-export-report:hover {
+    background: #3182ce;
+}
+
+/* Filters */
+.history-filters {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+    padding: 14px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.history-filters .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-filters .filter-group label {
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.history-filters .filter-group select {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    min-width: 150px;
+}
+
+.history-filters .filter-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.filter-info {
+    margin-left: auto;
+    color: #667eea;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Stats Cards */
+.history-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.h-stat-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+    padding: 14px 16px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.h-stat-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.h-stat-value {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+}
+
+.h-stat-value.danger-text {
+    color: #e53e3e;
+}
+
+.h-stat-value.warning-text {
+    color: #ed8936;
+}
+
+/* Charts */
+.chart-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+    padding: 18px 20px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.chart-container h2 {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 14px;
+}
+
+.chart-wrapper {
+    height: 320px;
+    position: relative;
+}
+
+.chart-wrapper.small {
+    height: 240px;
+}
+
+.charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.charts-row .chart-container {
+    margin-bottom: 0;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.table-count {
+    color: #666;
+    font-size: 13px;
+}
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 500px;
+}
+
+.history-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f7fafc;
+    color: #555;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.history-table .status-normal {
+    color: #48bb78;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.history-table .status-warning {
+    color: #ed8936;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.history-table .status-danger {
+    color: #e53e3e;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .history-page {
+        padding: 12px 14px;
+    }
+
+    .history-page .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .export-actions {
+        width: 100%;
+    }
+
+    .export-actions button {
+        flex: 1;
+    }
+
+    .history-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .history-filters .filter-group {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .history-filters .filter-group select {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .filter-info {
+        margin-left: 0;
+        text-align: center;
+    }
+
+    .history-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .h-stat-value {
+        font-size: 18px;
+    }
+
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-wrapper {
+        height: 240px;
+    }
+
+    .chart-wrapper.small {
+        height: 200px;
+    }
+}
