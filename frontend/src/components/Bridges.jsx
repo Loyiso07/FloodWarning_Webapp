@@ -163,7 +163,7 @@ function Bridges() {
                                 />
                             </div>
                             <div className="form-group">
-                                <label>Vibration Threshold (g)</label>
+                                <label>Warning Vibration Threshold (g)</label> 
                                 <input
                                     type="number"
                                     step="0.01"

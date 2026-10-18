@@ -535,6 +535,56 @@ app.get('/api/stats', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+// ========== MANUAL OVERRIDE ENDPOINTS ==========
+
+// 1. Endpoint for Admin Web App to SET the override
+app.post('/api/controls/:bridge_id', async (req, res) => {
+    const { bridge_id } = req.params;
+    const { barrier_override, buzzer_override } = req.body;
+    
+    try {
+        const result = await pool.query(
+            `UPDATE system_controls 
+             SET barrier_override = $1, buzzer_override = $2, updated_at = NOW()
+             WHERE bridge_id = $3 RETURNING *`,
+            [barrier_override, buzzer_override, bridge_id]
+        );
+        
+        if (result.rows.length === 0) {
+            // If no row exists, create one
+            const insert = await pool.query(
+                `INSERT INTO system_controls (bridge_id, barrier_override, buzzer_override) 
+                 VALUES ($1, $2, $3) RETURNING *`,
+                [bridge_id, barrier_override, buzzer_override]
+            );
+            return res.json(insert.rows[0]);
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error setting override:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// 2. Endpoint for ESP32 to GET the override command
+app.get('/api/controls/:bridge_id', async (req, res) => {
+    const { bridge_id } = req.params;
+    try {
+        const result = await pool.query(
+            'SELECT * FROM system_controls WHERE bridge_id = $1', 
+            [bridge_id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.json({ barrier_override: false, buzzer_override: false });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching override:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // ========== FORGOT PASSWORD ==========
 

@@ -11,6 +11,7 @@ import History from './components/History';
 import Alerts from './components/Alerts';
 import Help from './components/Help';
 import CitizenDashboard from './components/CitizenDashboard';
+import Override from './components/Override'; // ✅ NEW IMPORT
 import './App.css';
 
 function App() {
@@ -62,6 +63,8 @@ function App() {
                                     <Link to="/history">History</Link>
                                     <Link to="/users">Users</Link>
                                     <Link to="/create-admin">+ Admin</Link>
+                                    {/* ✅ NEW LINK: Override Tab */}
+                                    <Link to="/override" style={{ color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Override</Link> 
                                 </>
                             )}
                             <Link to="/alerts">Alerts</Link>
@@ -100,6 +103,12 @@ function App() {
                     <Route path="/history" element={
                         isAuthenticated && isAdmin ? <History /> : <Navigate to="/dashboard" />
                     } />
+                    
+                    {/* ✅ NEW ROUTE: Override Page */}
+                    <Route path="/override" element={
+                        isAuthenticated && isAdmin ? <Override /> : <Navigate to="/dashboard" />
+                    } />
+
                     <Route path="/alerts" element={
                         isAuthenticated ? <Alerts user={user} /> : <Navigate to="/login" />
                     } />
