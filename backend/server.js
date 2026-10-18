@@ -369,7 +369,7 @@ app.post('/api/readings', async (req, res) => {
         
         // ✅ INVERTED LOGIC FOR OBJECT DETECTION:
         // Lower distance = Closer object = Higher danger
-        if (water_level_cm <= b.danger_threshold_cm || effectiveVibration >= b.vibration_threshold_g * 2) {
+        if (water_level_cm <= b.danger_threshold_cm || effectiveVibration >= b.vibration_threshold_g ) {
             alert_level = 'danger';
         } else if (water_level_cm <= b.warning_threshold_cm || effectiveVibration >= b.vibration_threshold_g) {
             alert_level = 'warning';
